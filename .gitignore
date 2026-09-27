@@ -1,0 +1,6 @@
+work/
+*.log
+*.archimate
+*-inventory.json
+.env
+node_modules/

@@ -1,0 +1,5 @@
+(function(){
+    var root=String(Java.type("java.nio.file.Paths").get(__DIR__).getParent().toAbsolutePath());
+    ["core","auth","http","inventory","dependencies","dataverse","service","planner","cli-java","java-runtime","archi-adapter","ui","app"].forEach(function(f){load(root+"/lib/"+f+".js");});
+    load(root+"/config/settings.js");PPApp.run("sync",POWERPLATFORM_SETTINGS);
+}());

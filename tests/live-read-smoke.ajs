@@ -1,0 +1,31 @@
+/* Opt-in: real metadata reads, then synchronization into a NEW disposable model only. */
+(function(){
+ var root=String(Java.type('java.nio.file.Paths').get(__DIR__).getParent().toAbsolutePath());
+ ['core','auth','http','inventory','dependencies','dataverse','service','planner','cli-java','java-runtime','archi-adapter'].forEach(function(f){load(root+'/lib/'+f+'.js');});
+ var C=PPCore,requested=Java.type('java.lang.System').getenv('ARCHI_PP_TEST_ENVIRONMENT');
+ C.assert(requested,'Set ARCHI_PP_TEST_ENVIRONMENT to the approved environment ID.');var id=C.envId(String(requested)),auth=null,checks=[];
+ function ok(value,message){C.assert(value,message);checks.push(message);}
+ try{
+  auth=PPAuth.create(PPCliJava.createIo());var http=PPHttp.create(PPJava.io,auth,function(s){console.log(s);});
+  var discovery=PPInventory.create(http,auth.tenantId).discover(),env=discovery.environments.filter(function(e){return e.id===id;})[0];
+  ok(!!env&&env.available,'Selected environment discovered through the Java runtime');
+  var snapshot=PPService.collect(http,auth.tenantId,[env],[],{},function(s){console.log(s);});
+  ok(snapshot.coverage.every(function(c){return c.complete;}),'All scoped object collections completed through Java HTTPS');
+  // Test role mappings only in this disposable model. This does not select roles for a user's model.
+  var testRoleKeys=snapshot.roleCandidates.filter(function(c){return c.object.roleClassification==='custom-candidate';}).map(function(c){return c.object.key;});
+  PPService.finish(snapshot,testRoleKeys);
+  var m=$.model.create('Power Platform live metadata test');m.setAsCurrent();
+  function sync(){var p=PPPlanner.plan(PPArchi.elements(m),PPArchi.relationships(m),snapshot,{},PPArchi.isAllowed);PPArchi.apply(m,p,PPArchi.prepare(m,p));return p;}
+  var p=sync(),ids={};PPArchi.elements(m).forEach(function(e){ids[e.key]=e.elementId;});
+  ok(p.counts.create===snapshot.objects.length,'All live objects materialized with valid Archi types');
+  ok(p.relationships.length>=snapshot.edges.length,'Explicit dependencies and hosting links materialized');
+  var again=sync();ok(again.counts.create===0&&again.counts.relationshipsCreate===0,'Repeated live snapshot creates no duplicate elements or links');
+  ok(PPArchi.elements(m).every(function(e){return ids[e.key]===e.elementId;}),'All concept GUIDs are stable on repeat');
+  var output=root+'/work/live-smoke.archimate';m.save(output);var loaded=$.model.load(output);
+  ok(PPArchi.elements(loaded).length===snapshot.objects.length,'Live model saves and reloads successfully');
+  var xml=PPJava.read(output);ok(!/&quot;(?:clientdata|connectionReferences|actions|inputs)&quot;\s*:/.test(xml)&&!/Bearer\s+[A-Za-z0-9_.-]{20}/.test(xml),'Live model excludes raw definitions and tokens');
+  var counts={};snapshot.objects.forEach(function(o){counts[o.kind]=(counts[o.kind]||0)+1;});
+  PPJava.write(root+'/work/live-read-smoke-result.json',JSON.stringify({status:'passed',checks:checks,environmentCount:discovery.environments.length,counts:counts,dependencies:snapshot.edges.length,relationships:PPArchi.relationships(m).length,roleCandidates:snapshot.roleCandidates.length,unresolved:snapshot.unresolved.length,warnings:snapshot.warnings},null,2));
+  console.log('POWERPLATFORM_LIVE_READ_SMOKE_PASSED: '+checks.length);
+ }finally{if(auth)auth.clear();}
+}());

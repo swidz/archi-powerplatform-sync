@@ -1,0 +1,43 @@
+/* Disposable real-Archi tests. No network access or user model reads. */
+(function(){
+    var root=String(Java.type("java.nio.file.Paths").get(__DIR__).getParent().toAbsolutePath());
+    ["core","inventory","planner","java-runtime","archi-adapter"].forEach(function(f){load(root+"/lib/"+f+".js");});
+    var C=PPCore,checks=[],tenant="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",env="11111111-1111-1111-1111-111111111111",env2="22222222-2222-2222-2222-222222222222";
+    var appId="33333333-3333-3333-3333-333333333333",flowId="44444444-4444-4444-4444-444444444444",roleId="66666666-6666-6666-6666-666666666666";
+    function ok(value,message){C.assert(value,message);checks.push(message);}
+    function object(kind,id,environment){return PPInventory.base(tenant,{id:environment||env,name:"Test Environment",type:"Sandbox"},kind,id,kind);}
+    var m=$.model.create("Power Platform disposable smoke test");m.setAsCurrent();
+    var node=object("environment",env),app=object("canvasapp",appId),flow=object("flow",flowId),role=object("role",roleId);
+    var snapshot={tenantId:tenant,environmentIds:[env],collectedAt:"2026-09-27T12:00:00Z",objects:[node,app,flow,role],warnings:[],unresolved:[],edges:[],coverage:[],confirmedMissing:[],completedOwners:{},protectedOwners:{},roleSelectionKeys:[role.key]};
+    snapshot.edges=[{source:app.key,target:flow.key,type:"triggering-relationship",evidence:{owner:"app-flow",source:"fixture",field:"id",interaction:"invokes"}},{source:role.key,target:app.key,type:"association-relationship",evidence:{owner:"role-app",source:"fixture",field:"id",interaction:"grants-access"}}];
+    function sync(){var plan=PPPlanner.plan(PPArchi.elements(m),PPArchi.relationships(m),snapshot,{},PPArchi.isAllowed);PPArchi.apply(m,plan,PPArchi.prepare(m,plan));return plan;}
+    function concept(key){var found;$(m).find("element").each(function(e){e=e.concept||e;if(C.text(e.prop("PowerPlatform-Key"))===key)found=e;});return found;}
+    function ancestry(e){var names=[],f=$(e).parent().first();while(f&&String(f.type)==="folder"){names.unshift(String(f.name));f=$(f).parent().first();}return names;}
+    var first=sync();ok(first.counts.create===4,"Creates environment, application, flow and security role");
+    ok(PPArchi.relationships(m).length===4,"Creates valid Serving, Triggering and role Association relationships");
+    var a=concept(app.key),aId=String(a.id),r=PPArchi.relationships(m).filter(function(x){return x.type==="triggering-relationship";})[0],relId=r.id;
+    ok(ancestry(a).slice(1).join("/")==="PowerPlatform/Test Environment [11111111]/Applications","Application folders omit tenant level");
+    ok(ancestry(concept(role.key)).slice(-1)[0]==="Security Roles","Roles live in the Business category");
+    a.prop("Architect-Notes","Manual description");a.documentation="Architect documentation";
+    var view=m.createArchimateView("Existing manual view"),visual=view.add(a,30,40,170,80);
+    sync();ok(String(concept(app.key).id)===aId,"Repeat sync preserves element GUID");ok(PPArchi.relationships(m).some(function(x){return x.id===relId;}),"Repeat sync preserves relationship GUID");
+    ok(PPArchi.elements(m).length===4,"Diagram occurrences do not duplicate model elements");ok(String(a.prop("Architect-Notes"))==="Manual description"&&String(a.documentation)==="Architect documentation","Manual properties and documentation survive");
+    ok(Number(visual.bounds.x)===30&&Number(visual.bounds.width)===170,"Existing diagram layout survives");ok(m.specializations.length===0,"Specializations are optional and off by default");
+    snapshot.objects.forEach(function(o){o.environmentName="Renamed";});sync();ok(ancestry(a)[2]==="Renamed [11111111]","Environment renaming reuses and renames folders");
+    var manual=m.createRelationship("association-relationship","Keep manual name",a,concept(flow.key)),manualId=String(manual.id);manual.prop("Manual","keep");
+    snapshot.edges.push({source:app.key,target:flow.key,type:"association-relationship",evidence:{owner:"manual",source:"fixture",field:"id",interaction:"dependency"}});sync();
+    ok(String(manual.name)==="Keep manual name"&&String(manual.prop("Manual"))==="keep"&&!manual.prop("PowerPlatform-ManagedBy"),"Matching manual relationship remains unowned and unchanged");
+    snapshot.edges=[];snapshot.completedOwners={};sync();ok(PPArchi.relationships(m).find(function(x){return x.id===relId;}).properties.IsDeleted==="no","Incomplete dependency reads preserve existing links");
+    snapshot.completedOwners={"app-flow":true};sync();ok(PPArchi.relationships(m).find(function(x){return x.id===relId;}).properties.IsDeleted==="yes","Complete dependency removal soft-deletes the link");
+    snapshot.edges=[{source:app.key,target:flow.key,type:"triggering-relationship",evidence:{owner:"app-flow",source:"fixture",field:"id",interaction:"invokes"}}];sync();
+    ok(PPArchi.relationships(m).find(function(x){return x.id===relId;}).properties.IsDeleted==="no","Restored relationship retains its GUID");
+    snapshot.objects=[node,app,role];snapshot.edges=[];snapshot.confirmedMissing=[flow.key];sync();ok(String(concept(flow.key).prop("IsDeleted"))==="yes","Confirmed object removal soft-deletes");
+    snapshot.objects.push(flow);snapshot.confirmedMissing=[];sync();ok(String(concept(flow.key).prop("IsDeleted"))==="no","Restored object keeps the existing concept");
+    var copiedNode=object("environment",env2,env2),copiedApp=object("canvasapp",appId,env2);snapshot.objects.push(copiedNode,copiedApp);snapshot.environmentIds.push(env2);sync();
+    ok(String(concept(copiedApp.key).id)!==aId,"Identical app GUIDs in copied environments create distinct concepts");
+    snapshot.environmentIds=[env];snapshot.objects=snapshot.objects.filter(function(o){return o.environmentId===env;});sync();ok(!!concept(copiedApp.key),"Deselected environment retains previously imported elements");
+    var output=root+"/work/smoke.archimate";m.save(output);var loaded=$.model.load(output);loaded.setAsCurrent();
+    ok(PPArchi.elements(loaded).length===6,"Saved model reload preserves all identities");ok(PPArchi.relationships(loaded).some(function(x){return x.id===manualId;}),"Saved model retains manual relationship");
+    var text=PPJava.read(output);ok(text.indexOf("clientdata")<0&&text.indexOf("Bearer ")<0,"Saved model excludes raw definitions and bearer tokens");
+    PPJava.write(root+"/work/archi-smoke-result.json",JSON.stringify({status:"passed",checks:checks},null,2));console.log("POWERPLATFORM_ARCHI_SMOKE_PASSED: "+checks.length);
+}());

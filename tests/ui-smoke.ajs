@@ -1,0 +1,29 @@
+/* Real SWT event-loop test. Opens only short-lived disposable dialogs. */
+(function(){
+ var root=String(Java.type('java.nio.file.Paths').get(__DIR__).getParent().toAbsolutePath());
+ ['core','java-runtime','ui'].forEach(function(f){load(root+'/lib/'+f+'.js');});
+ var SWT=Java.type('org.eclipse.swt.SWT'),Display=Java.type('org.eclipse.swt.widgets.Display'),Event=Java.type('org.eclipse.swt.widgets.Event');
+ var display=Display.getDefault(),checks=[],error=null;
+ function ok(value,name){PPCore.assert(value,name);checks.push(name);}
+ function walk(widget,list){list.push(widget);if(widget.getChildren)Java.from(widget.getChildren()).forEach(function(w){walk(w,list);});return list;}
+ function automate(action){display.timerExec(350,function(){var dialog=Java.from(display.getShells()).filter(function(s){return String(s.getText()).indexOf('PP UI test')===0;})[0];
+  try{PPCore.assert(dialog,'Test dialog opened');action(dialog,walk(dialog,[]));}catch(e){error=e;if(dialog&&!dialog.isDisposed())dialog.close();}
+ });}
+ function type(w){return String(w.getClass().getSimpleName());}
+ function button(w,name){return w.filter(function(x){return type(x)==='Button'&&String(x.getText())===name;})[0];}
+ function click(b){b.notifyListeners(SWT.Selection,new Event());}
+ var rows=[{id:'1',name:'Production',available:true},{id:'2',name:'Development',available:true},{id:'3',name:'Disabled',available:false}];
+ var columns=[{title:'Environment',field:'name',width:500}];
+ automate(function(dialog,w){var search=w.filter(function(x){return type(x)==='Text';})[0],table=w.filter(function(x){return type(x)==='Table';})[0];
+  ok(table.getItemCount()===3,'Dialog lists all environments');search.setText('Development');ok(table.getItemCount()===1,'Search filters environment rows');click(button(w,'Select filtered'));search.setText('');
+  ok(Java.from(table.getItems()).filter(function(i){return i.getChecked();}).length===2,'Selection survives filtering');table.getColumn(0).notifyListeners(SWT.Selection,new Event());
+  var disabled=Java.from(table.getItems()).filter(function(i){return String(i.getData())==='3';})[0];disabled.setChecked(true);var ev=new Event();ev.item=disabled;ev.detail=SWT.CHECK;table.notifyListeners(SWT.Selection,ev);
+  ok(!disabled.getChecked(),'Disabled environments cannot be selected');click(button(w,'Continue'));
+ });
+ var result=PPUI.picker('PP UI test environments','Disposable test',rows,columns,['1'],true,false);if(error)throw error;
+ ok(result.length===2,'Multi-selection returns the checked environments');
+ automate(function(dialog,w){click(button(w,'Clear selection'));ok(button(w,'Continue').getEnabled(),'Role selection permits an empty custom-role scope');click(button(w,'Continue'));});
+ result=PPUI.picker('PP UI test roles','Disposable test',rows,columns,['1'],false,true);if(error)throw error;ok(result.length===0,'Clearing role selection returns no roles');
+ automate(function(dialog,w){click(button(w,'Cancel'));});result=PPUI.picker('PP UI test cancel','Disposable test',rows,columns,[],false,false);if(error)throw error;ok(result===null,'Cancel returns without applying a selection');
+ PPJava.write(root+'/work/ui-smoke-result.json',JSON.stringify({status:'passed',checks:checks},null,2));console.log('POWERPLATFORM_UI_SMOKE_PASSED: '+checks.length);
+}());
