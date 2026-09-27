@@ -1,4 +1,4 @@
-const test=require('node:test'),assert=require('node:assert/strict'),C=require('../lib/core.js'),S=require('../lib/scoped.js'),P=require('../lib/planner.js'),Context=require('../lib/context.js'),F=require('./fixtures.cjs');
+const test=require('node:test'),assert=require('node:assert/strict'),C=require('../lib/core.js'),S=require('../lib/scoped.js'),P=require('../lib/planner.js'),F=require('./fixtures.cjs');
 const solutionId='88888888-8888-8888-8888-888888888888',otherId='99999999-9999-9999-9999-999999999999';
 const env={id:F.env,name:'Environment',url:'https://test.crm4.dynamics.com',apiUrl:'https://test.api.crm4.dynamics.com',available:true};
 function member(type,id,behavior=1){return {componenttype:type,objectid:id,_solutionid_value:solutionId,rootcomponentbehavior:behavior};}
@@ -20,11 +20,6 @@ test('Solution discovery shows visible solutions by default with an explicit hid
 });
 test('A non-GUID optional canvas alias is not used as a source identity',()=>{
  const o=S.normalize(F.tenant,env,'canvasapp',{canvasappid:F.ids.app,uniquecanvasappid:'logical-name-only',name:'App'});assert.deepEqual(o.aliases,[F.ids.app]);
-});
-test('Solution-context selection validates ownership, distinct contexts and kind',()=>{
- const o={managed:true,tenantId:F.tenant,environmentId:F.env,kind:'solution',id:solutionId};assert.equal(Context.resolve([o,o],'solution').solutionId,solutionId);
- assert.throws(()=>Context.resolve([],'solution'),/Select an imported/);assert.throws(()=>Context.resolve([{...o,kind:'flow'}],'solution'),/Select a solution/);
- assert.throws(()=>Context.resolve([o,{...o,id:otherId}],'solution'),/exactly one/);assert.throws(()=>Context.resolve([{...o,managed:false}],'environment'),/not managed/);
 });
 test('get-applications queries only requested solution component types and preserves legacy canvas aliases',()=>{
  const fx=fixture({members:[member(300,F.ids.child)],rows:{canvasapps:[{canvasappid:F.ids.child,uniquecanvasappid:F.ids.app,name:'canvas',displayname:'App',canvasapptype:0}]}});

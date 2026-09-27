@@ -5,16 +5,20 @@ The normal workflow is **environment → solution → component type**. Each sta
 | Script | Required selection | Result |
 | --- | --- | --- |
 | `get-environments.ajs` | Open model | Multi-select popup; creates or updates only environment Nodes |
-| `get-solutions.ajs` | An imported environment Node, its environment folder, or a managed element in that environment | Multi-select popup; creates or updates selected solutions |
-| `get-applications.ajs` | One imported solution | Canvas and model-driven apps in that solution |
-| `get-workflows.ajs` | One imported solution | Power Automate cloud-flow definitions in that solution |
-| `get-agents.ajs` | One imported solution | Copilot Studio agents in that solution |
-| `get-tables.ajs` | One imported solution | Table definitions represented as Data Objects |
-| `get-views.ajs` | One imported solution | System views represented as Data Objects |
+| `get-solutions.ajs` | One or more imported environment Nodes | Combined multi-select popup; creates or updates selected solutions |
+| `get-applications.ajs` | One or more imported solution Application Components | Canvas and model-driven apps in those solutions |
+| `get-workflows.ajs` | One or more imported solution Application Components | Power Automate cloud-flow definitions in those solutions |
+| `get-agents.ajs` | One or more imported solution Application Components | Copilot Studio agents in those solutions |
+| `get-tables.ajs` | One or more imported solution Application Components | Table definitions represented as Data Objects |
+| `get-views.ajs` | One or more imported solution Application Components | System views represented as Data Objects |
 
-Selection can come from the model tree or from an element occurrence in a diagram. Several occurrences of the same solution resolve to one context. Conflicting environments/solutions, unowned objects and a missing selection are rejected before collection; the script never silently reuses a previous solution. The signed-in tenant must match the selected object.
+Use Ctrl-click or Shift-click in the model tree on Windows to select several contexts, then run the desired script. Selection can also come from element occurrences in a diagram. Several occurrences of the same concept resolve to one context. Solutions may belong to different environments, provided they belong to the same tenant and active model. The signed-in tenant must match every selected context.
 
-The solution picker supports search, sorting and multi-selection. It shows platform-visible solutions by default; set `includeHiddenSolutions:true` in `config/settings.js` to include internal/hidden solutions. New solutions start unchecked, while previously imported solutions are checked. Deselecting a solution preserves its existing content. There is no tenant folder or tenant element.
+Before authentication or API calls, every selected object must match both the required Power Platform object kind and ArchiMate base type. Folders, relationships, manual elements, deleted contexts, elements from another model, corrupt identities and mixed types stop the entire run with an error identifying the problem. For example, selecting a solution and an app together cannot run `get-applications`, even though both are Application Components. `get-solutions` requires actual environment Nodes; an environment folder or an app cannot supply context.
+
+All selected environments must be available and have a readable Dataverse URL before per-context collection begins. Collection completes across all contexts before one combined preview and Apply step. Cancelling or a fatal error in a later context leaves the whole model unchanged. Recoverable partial reads are reported in the preview and preserve existing links in affected environments.
+
+The solution picker supports search, sorting and multi-selection across all selected environments, with Environment and Environment ID columns. Selection uses environment-qualified identities, so copies with the same solution GUID remain independent. It shows platform-visible solutions by default; set `includeHiddenSolutions:true` in `config/settings.js` to include internal/hidden solutions. New solutions start unchecked, while previously imported solutions are checked. Deselecting a solution preserves its existing content. There is no tenant folder or tenant element.
 
 ## Layer and folder mapping
 
@@ -38,17 +42,17 @@ Some solutions include a table with **Include Subcomponents** (`rootcomponentbeh
 
 ## Dependencies and incremental use
 
-With `discoverDependencies=true`, component scripts also read static child-flow references, explicit agent-flow tools and declared app/flow dependencies. Dependencies may link to another component already imported into the same environment, without refreshing that component or recursively importing unrelated objects. A view-to-table link uses only its explicit table logical name.
+With `discoverDependencies=true`, component scripts also read static child-flow references, explicit agent-flow tools and declared app/flow dependencies. References resolve after all selected solutions have been read, so a reference to a component collected later in the same batch resolves immediately. Shared components and repeated evidence are deduplicated. Dependencies may also link to another component already imported into the same environment, without refreshing that component or recursively importing unrelated objects. A view-to-table link uses only its explicit table logical name.
 
 When an endpoint has not yet been imported, the script reports an unresolved reference. Import it through the relevant solution/type script, then rerun the originating component script. Runtime calls cannot be inferred from shared connectors or mere solution membership. Cross-environment dependencies are not guessed.
 
-Each script updates only its observed objects and completed evidence scopes. A table run cannot retire app/flow/agent membership. A solution-A refresh cannot retire solution-B membership. A failed page, denied metadata read or unresolved endpoint protects prior evidence. A component removed from a solution stays in the model; only its membership link can receive the reversible `IsDeleted=yes` marker.
+Each script updates only its observed objects and completed evidence scopes. A table run cannot retire app/flow/agent membership. A solution-A refresh cannot retire unselected solution-B membership. A failed page or denied metadata read protects prior links throughout its environment for that batch, including shared objects read successfully in another selected solution. An unresolved endpoint protects its own evidence scope. Rerun a complete batch to reconcile removals. A component removed from a solution stays in the model; only its membership link can receive the reversible `IsDeleted=yes` marker.
 
 Context runs record `PowerPlatform-LastSyncScope` on the model. Their success status describes that action's scope, not full environment coverage. They do not overwrite the saved environment-wide role selection.
 
 ## Compatibility and installation
 
-Version 0.2.0 reuses 0.1.0 element identities, lifecycle properties and folder keys. No migration or reimport is required. Install the updated package with `tools/Install-ArchiScripts.ps1`; existing `config/settings.js` is preserved. Refresh the Scripts tree to see the seven new `get-*` commands.
+Version 0.3.0 reuses 0.1.0 and 0.2.0 element identities, lifecycle properties and folder keys. No migration or reimport is required. Install the updated package with `tools/Install-ArchiScripts.ps1`; existing `config/settings.js` is preserved. Refresh the Scripts tree after installation. Single-element selection remains supported, subject to the same strict type checks.
 
 The original `Sync Power Platform`, `Select Environments`, connection diagnostic and inventory export remain available. Environment-wide sync leaves solutions/tables/views untouched when they are not part of its collection scope.
 

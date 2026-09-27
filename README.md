@@ -1,6 +1,6 @@
 # Archi Power Platform Sync
 
-Retrieve Power Platform environments, solutions and their components into an open Archi model using context-specific scripts. Version **0.2.0**. Apps, cloud flows, agents, tables and views can each be retrieved independently for a selected solution. The original environment-wide sync remains available for broader inventory and custom Dataverse security roles.
+Retrieve Power Platform environments, solutions and their components into an open Archi model using context-specific scripts. Version **0.3.0**. Apps, cloud flows, agents, tables and views can each be retrieved for one or more selected solutions in a single batch. The original environment-wide sync remains available for broader inventory and custom Dataverse security roles.
 
 The tool uses your existing **Azure CLI user sign-in**. It makes metadata reads, previews the resulting model changes, and updates the model only after you select **Apply**. Save and commit the model through your normal Archi/coArchi workflow. It does not write to Power Platform or commit an Archi repository automatically.
 
@@ -25,8 +25,8 @@ Requirements: Archi with jArchi using **GraalJS**, Azure CLI **2.54+**, and an i
    Or copy the entire package to `Documents\Archi\scripts\archi-powerplatform-sync`. Keep `scripts`, `lib` and `config` together. Refresh the jArchi Scripts tree if needed.
 
 3. Open the target Archi model. Run **archi-powerplatform-sync / scripts / get-environments.ajs**. Check the environments to import; optionally assign architecture stages. Review the preview and apply. This creates only environment Nodes.
-4. Select an imported environment Node in the model tree or a diagram. Run **get-solutions.ajs**, choose solutions in the searchable popup, review and apply.
-5. Select an imported solution Application Component. Run **get-applications.ajs**, **get-workflows.ajs**, **get-agents.ajs**, **get-tables.ajs** or **get-views.ajs** to retrieve that component type. Each command has its own preview.
+4. Select one or more imported environment Nodes in the model tree or a diagram (Ctrl-click or Shift-click on Windows). Run **get-solutions.ajs**, choose solutions in the combined searchable popup, review and apply. The popup identifies each solution's environment.
+5. Select one or more imported solution Application Components. Run **get-applications.ajs**, **get-workflows.ajs**, **get-agents.ajs**, **get-tables.ajs** or **get-views.ajs** to retrieve that component type. The entire selection is validated before authentication or API calls; wrong or mixed types stop the run. Each batch has one combined preview and Apply step.
 6. Inspect and save the model. Rerun a component command after importing its referenced components to resolve additional links.
 
 See the [context workflow guide](docs/context-workflow.md) for selection rules, shared components and the difference between solution membership and runtime dependencies.
@@ -63,7 +63,7 @@ Environments **serve** their solutions, apps, flows and agents. Solutions **aggr
 
 Tables and views are imported only when their specific solution-context script is run. Columns, plug-ins, business rules, users, teams, connections and connectors are not created as model elements. Dataverse views are represented as Data Objects; no Archi diagrams are generated or rearranged.
 
-Components shared by several solutions keep one element per environment, with multiple solution membership links. They remain in the environment's component-type folders, so retrieving another solution neither duplicates nor moves them.
+Components shared by several selected solutions keep one element per environment, with multiple solution membership links. They remain in the environment's component-type folders, so retrieving another solution neither duplicates nor moves them. References between components collected in the same batch resolve regardless of selection order.
 
 ## Other scripts
 

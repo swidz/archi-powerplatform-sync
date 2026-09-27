@@ -6,18 +6,18 @@
     var solutionId='88888888-8888-8888-8888-888888888888',appId='33333333-3333-3333-3333-333333333333',tableId='44444444-4444-4444-4444-444444444444',viewId='55555555-5555-5555-5555-555555555555';
     var checks=[],members=[{componenttype:300,objectid:appId,_solutionid_value:solutionId},{componenttype:1,objectid:tableId,_solutionid_value:solutionId,rootcomponentbehavior:1},{componenttype:26,objectid:viewId,_solutionid_value:solutionId}];
     var solution={solutionid:solutionId,friendlyname:'Solution A'},rows={canvasapps:[{canvasappid:appId,name:'App'}],EntityDefinitions:[{MetadataId:tableId,LogicalName:'account',DisplayName:{UserLocalizedLabel:{Label:'Account'}}}],savedqueries:[{savedqueryid:viewId,name:'Active accounts',returnedtypecode:'account'}]};
-    var http={request:function(){return solution;},pages:function(url,resource,cb){var decoded=decodeURIComponent(url),collection=decoded.split('/api/data/v9.2/')[1].split('?')[0];if(collection==='solutioncomponents')cb(members.filter(function(r){return decoded.indexOf('componenttype eq '+r.componenttype)>=0;}));else cb(rows[collection]||[]);}};
+    var activeSolution=solutionId,http={request:function(method,url){activeSolution=url.match(/solutions\(([^)]+)\)/)[1];return Object.assign({},solution,{solutionid:activeSolution});},pages:function(url,resource,cb){var decoded=decodeURIComponent(url),collection=decoded.split('/api/data/v9.2/')[1].split('?')[0];if(collection==='solutioncomponents')cb(members.filter(function(r){return decoded.indexOf('componenttype eq '+r.componenttype)>=0;}).map(function(r){return Object.assign({},r,{_solutionid_value:activeSolution});}));else cb(rows[collection]||[]);}};
     var m=$.model.create('Scoped Power Platform test');m.setAsCurrent();var collector=PPScoped.create(http,tenant);
     function ok(value,message){C.assert(value,message);checks.push(message);}
     function sync(s){var p=PPPlanner.plan(PPArchi.elements(m),PPArchi.relationships(m),s,{},PPArchi.isAllowed);PPArchi.apply(m,p,PPArchi.prepare(m,p));return p;}
     function concept(kind){var found;$(m).find('element').each(function(item){var e=item.concept||item;if(String(e.prop(C.PREFIX+'ObjectType'))===kind)found=e;});return found;}
     sync(PPScoped.environments(tenant,[env]));var environment=concept('environment');
-    ok(PPArchi.elements(m).length===1,'get-environments creates only its Node');ok(PPArchi.context([environment],'environment').environmentId===env.id,'Environment context resolves from model selection');
+    ok(PPArchi.elements(m).length===1,'get-environments creates only its Node');ok(PPArchi.context([environment],'environment',m)[0].environmentId===env.id,'Environment context resolves from model selection');
     sync(collector.selectedSolutions(env,[PPScoped.normalize(tenant,env,'solution',solution)],PPArchi.elements(m)));var sol=concept('solution');
-    ok(String(sol.type)==='application-component','Solutions are Application Components');ok(PPArchi.context([sol],'solution').solutionId===solutionId,'Solution context resolves from tree selection');
-    ok(PPArchi.context($(sol),'solution').solutionId===solutionId,'Native jArchi selection collections resolve correctly');
+    ok(String(sol.type)==='application-component','Solutions are Application Components');ok(PPArchi.context([sol],'solution',m)[0].solutionId===solutionId,'Solution context resolves from tree selection');
+    ok(PPArchi.context($(sol),'solution',m)[0].solutionId===solutionId,'Native jArchi selection collections resolve correctly');
     var view=m.createArchimateView('Context test view'),visual=view.add(sol,40,50,150,70);
-    ok(PPArchi.context([visual],'solution').solutionId===solutionId,'Solution context resolves from a diagram occurrence');
+    ok(PPArchi.context([visual],'solution',m)[0].solutionId===solutionId,'Solution context resolves from a diagram occurrence');
     ['applications','tables','views'].forEach(function(group){sync(collector.collect(env,solutionId,group,PPArchi.elements(m),{}));});
     var app=concept('canvasapp'),table=concept('table'),dataView=concept('view'),appGuid=String(app.id);app.prop('Architect-Notes','keep');
     ok(String(table.type)==='data-object'&&String(dataView.type)==='data-object','Tables and views are Application-layer Data Objects');
@@ -30,5 +30,27 @@
     ok(String(app.prop('Architect-Notes'))==='keep','Scoped refresh preserves manual properties');
     ok(PPArchi.relationships(m).some(function(r){return r.type==='aggregation-relationship'&&r.properties.IsDeleted==='yes';}),'Only removed solution membership is soft-deleted');
     var file=root+'/work/scoped-smoke.archimate';m.save(file);var loaded=$.model.load(file);ok(PPArchi.elements(loaded).length===5,'Focused retrieval saves and reloads without duplication');
+    m.setAsCurrent();var secondId='99999999-9999-9999-9999-999999999999';
+    sync(collector.selectedSolutions(env,[PPScoped.normalize(tenant,env,'solution',{solutionid:secondId,friendlyname:'Solution B'})],PPArchi.elements(m)));
+    var second;$(m).find('element').each(function(e){if(String(e.prop(C.PREFIX+'ObjectId'))===secondId)second=e;});
+    var contexts=PPArchi.context([sol,second,visual,sol],'solution',m);ok(contexts.length===2,'Multiple selected solutions and repeated diagram occurrences resolve once each');
+    members.push({componenttype:300,objectid:appId,_solutionid_value:solutionId});rows.canvasapps=[{canvasappid:appId,name:'Shared app'}];
+    var batch=collector.collectMany(contexts.map(function(c){return {environment:env,solutionId:c.solutionId};}),'applications',PPArchi.elements(m),{}),plan=sync(batch);
+    ok(plan.counts.create===0&&String(concept('canvasapp').id)===appGuid,'Batch retrieval reuses the existing shared application GUID');
+    ok(PPArchi.relationships(m).filter(function(r){return r.type==='aggregation-relationship'&&r.properties.IsDeleted!=='yes';}).length===2,'Shared app has one active membership per selected solution');
+    ok(JSON.parse(String(m.prop(C.PREFIX+'LastSyncScope'))).contexts.length===2,'The model records the complete batch scope');
+    function rejected(items,level,pattern){try{PPArchi.context(items,level,m);return false;}catch(e){return pattern.test(String(e.message));}}
+    ok(rejected([sol,app],'solution',/wrong type/),'Mixed solution and app selection is rejected');
+    ok(rejected([environment,sol],'environment',/wrong type/),'get-solutions rejects solution elements alongside environment Nodes');
+    ok(rejected([$(environment).parent().first()],'environment',/wrong type/),'Environment folders cannot silently supply context');
+    ok(rejected($(m).find('element'),'solution',/wrong type/),'Native multi-selection validates every element');
+    ok(rejected([sol,$(m).find('relationship').first()],'solution',/wrong type/),'Relationship selections are rejected');
+    sol.prop('IsDeleted','yes');ok(rejected([sol],'solution',/marked deleted/),'Deleted context elements are rejected');sol.prop('IsDeleted','no');
+    var foreign=$.model.create('Other disposable model'),foreignSol=foreign.createElement('application-component','Foreign solution');
+    sol.prop().forEach(function(k){foreignSol.prop(String(k),String(sol.prop(k)));});m.setAsCurrent();
+    ok(rejected([foreignSol],'solution',/active model/),'A context from a different model is rejected');
+    var secondEnv=Object.assign({},env,{id:'22222222-2222-2222-2222-222222222222',name:'Copy'});sync(PPScoped.environments(tenant,[secondEnv]));
+    ok(PPArchi.context([environment,concept('environment')],'environment',m).length===2,'Multiple environment Nodes can supply get-solutions contexts');
+    m.save(file);loaded=$.model.load(file);ok(PPArchi.elements(loaded).length===7,'Batch model saves and reloads without duplicate shared components');
     PPJava.write(root+'/work/scoped-archi-smoke-result.json',JSON.stringify({status:'passed',checks:checks},null,2));console.log('POWERPLATFORM_SCOPED_ARCHI_PASSED: '+checks.length);
 }());

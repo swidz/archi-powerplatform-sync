@@ -2,7 +2,7 @@
 
 ## Pipeline
 
-Version 0.2.0 adds [context-specific retrieval](context-workflow.md): `get-environments` creates Nodes, `get-solutions` uses selected environment context, and `get-*` component scripts use selected solution context. `context.js` validates the model selection, `scoped.js` collects bounded solution membership and component metadata, and `scoped-app.js` coordinates review/application. Most imported concepts reside in the Application layer, including solution Application Components and table/view Data Objects.
+The [context-specific retrieval](context-workflow.md) workflow supports batch selection in version 0.3.0: `get-environments` creates Nodes, `get-solutions` requires selected environment Nodes, and `get-*` component scripts require selected solution Application Components. `context.js` validates every selected concept before authentication, `scoped.js` collects and combines bounded solution membership/metadata before resolving references, and `scoped-app.js` coordinates a single preview/application for the batch. Most imported concepts reside in the Application layer, including solution Application Components and table/view Data Objects.
 
 The original environment-wide pipeline remains available:
 

@@ -24,7 +24,7 @@ The regression suite covers scoped and copied identities, source aliases, Datave
 
 `archi-smoke.ajs` creates a new synthetic model and checks 22 behaviors, including valid relationships, folder placement, stable GUIDs, diagram occurrence deduplication, manual documentation/properties/layout, manual links, copied environments, deselection, soft deletion/restoration and saving/reloading. It never opens a user's model.
 
-`ui-smoke.ajs` opens short-lived disposable SWT dialogs and drives real events. Ten assertions cover listing, filtering, selection retention, disabled rows, multi-selection, empty role selection, cancellation and the solution picker. The test runner requires a fresh success-result JSON file because an Archi command-line process may return zero even if a script throws.
+`ui-smoke.ajs` opens short-lived disposable SWT dialogs and drives real events. Twelve assertions cover listing, filtering, selection retention, disabled rows, multi-selection, empty role selection, cancellation and independent selection of copied solution IDs across environments. The test runner requires a fresh success-result JSON file because an Archi command-line process may return zero even if a script throws.
 
 ## Opt-in live test
 
@@ -38,6 +38,16 @@ $env:ARCHI_PP_TEST_ENVIRONMENT = '<approved-environment-id>'
 The live test exercises the production Java CLI bridge and HTTPS transport, object collection, dependency resolution, ArchiMate validation, repeated application and model save/reload. It temporarily includes unmanaged role candidates in that test model to exercise role mapping; it does not select roles in another model or assert that every candidate is custom.
 
 ## Results on 2026-09-27
+
+### Version 0.3.0 batch selection
+
+Verified **85 Node tests**, syntax checks for **46 JavaScript files**, **27 scoped Archi checks**, **22 bulk compatibility checks**, **12 SWT dialog checks**, and **17 live batch integration checks**.
+
+The selection tests check every context against its required source kind, ArchiMate type, ownership, identity, lifecycle state and active model. They cover mixed-type rejection before authentication, environment availability preflight, cancellation and a fatal error in the final context with no model changes. Batch tests verify shared component deduplication, copied IDs across environments, dependencies between selected solutions in either order and preservation of earlier evidence when overlapping reads are incomplete.
+
+The real Archi tests validated multiple Nodes/solutions and diagram occurrences, rejected folders/relationships/wrong kinds, retained the shared component's GUID and saved/reloaded the resulting model. The SWT test selected identical solution GUIDs independently across two synthetic environments.
+
+The approved live environment test collected two solutions together for all five component types, then repeated application/workflow/agent batches. All object collections completed; the disposable model again contained **157 elements and 387 relationships**, with every concept GUID retained across refresh. References to components not yet imported were reported as unresolved, as expected. Cross-environment selection was tested with synthetic metadata; the live test remained within the approved environment. No existing user model or Power Platform configuration was changed.
 
 ### Version 0.2.0 context workflow
 

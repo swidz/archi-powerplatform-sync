@@ -11,11 +11,14 @@
         var m=$.model.create('Scoped live Power Platform test');m.setAsCurrent();
         function sync(s){var p=PPPlanner.plan(PPArchi.elements(m),PPArchi.relationships(m),s,{},PPArchi.isAllowed);PPArchi.apply(m,p,PPArchi.prepare(m,p));return p;}
         sync(PPScoped.environments(auth.tenantId,[env]));sync(collector.selectedSolutions(env,chosen,PPArchi.elements(m)));
-        chosen.forEach(function(solution){Object.keys(PPScoped.GROUPS).forEach(function(group){var s=collector.collect(env,solution.id,group,PPArchi.elements(m),{});sync(s);runs.push({solutionId:solution.id,group:group,coverage:s.coverage,objects:s.objects.length,edges:s.edges.length,unresolved:s.unresolved.length});
-            ok(s.coverage.every(function(c){return c.complete;}),'Complete '+group+' collection for selected solution '+(solutionIds.indexOf(solution.id)+1));
-        });});
+        var selection=[];$(m).find('element').each(function(e){if(String(e.prop(C.PREFIX+'ObjectType'))==='solution')selection.push(e);});
+        var contexts=PPArchi.context(selection,'solution',m),requests=contexts.map(function(c){return {environment:env,solutionId:c.solutionId};});ok(contexts.length===chosen.length,'All selected solution contexts validated in Archi');
+        Object.keys(PPScoped.GROUPS).forEach(function(group){var s=collector.collectMany(requests,group,PPArchi.elements(m),{});sync(s);runs.push({contexts:s.scope.contexts,group:group,coverage:s.coverage,objects:s.objects.length,edges:s.edges.length,unresolved:s.unresolved.length});
+            ok(s.coverage.every(function(c){return c.complete;}),'Complete '+group+' collection across all selected solutions');
+            ok(s.objects.length===C.unique(s.objects.map(function(o){return o.key;})).length,'No duplicate identities in '+group+' batch');
+        });
         var ids={};PPArchi.elements(m).forEach(function(e){ids[e.key]=e.elementId;});
-        chosen.forEach(function(solution){['applications','workflows','agents'].forEach(function(group){var s=collector.collect(env,solution.id,group,PPArchi.elements(m),{}),p=sync(s);ok(p.counts.create===0,'Repeated '+group+' retrieval reuses existing identities');});});
+        ['applications','workflows','agents'].forEach(function(group){var s=collector.collectMany(requests,group,PPArchi.elements(m),{}),p=sync(s);ok(p.counts.create===0,'Repeated '+group+' batch retrieval reuses existing identities');});
         ok(PPArchi.elements(m).every(function(e){return ids[e.key]===e.elementId;}),'All component GUIDs survive scoped refresh');
         var file=root+'/work/scoped-live-smoke.archimate';m.save(file);var loaded=$.model.load(file);
         ok(PPArchi.elements(loaded).length===PPArchi.elements(m).length,'Scoped live model saves and reloads');
