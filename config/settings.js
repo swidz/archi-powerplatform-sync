@@ -4,6 +4,8 @@ var POWERPLATFORM_SETTINGS={
     useSpecializations:false,
     discoverDependencies:true,
     includeRoles:true,
+    // Include hidden/internal solutions in get-solutions. Normally show platform-visible solutions only.
+    includeHiddenSolutions:false,
     // Optional root or business-unit role IDs to preselect/exclude in the custom-role picker.
     roleIds:[],
     excludeRoleIds:[],

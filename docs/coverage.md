@@ -1,5 +1,7 @@
 # Coverage and known limitations
 
+Version 0.2.0 adds solutions, table Data Objects and system-view Data Objects through explicit context scripts. See [context workflow](context-workflow.md). The original environment-wide collection remains available and keeps its previous EA-level scope; it does not automatically import tables or views.
+
 ## Sources
 
 | Source | Implemented use | Boundary |
@@ -8,6 +10,7 @@
 | Azure Resource Graph, `2022-10-01`, `PowerPlatformResources` | Selected-environment app, flow and agent inventory | Indexed and eventually consistent; not authoritative for deletion |
 | Dataverse global discovery v2.0 | Organization/API URLs and sysadmin context | Returns accessible organizations; does not replace tenant environment discovery |
 | Dataverse Web API v9.2 | Model-driven apps, canvas apps, cloud flows, agents, roles and supported relationship metadata | Effective organization read access is required; no reads of business data |
+| Scoped Dataverse solution membership | Solution metadata; requested apps/flows/agents/tables/views only | Requires a selected environment/solution; no object deletion inferred from removed membership |
 
 Environment discovery shows disabled and previously selected unavailable entries without allowing them to be checked. An epoch `deletedDateTime` is treated as the environment API's non-deleted sentinel. Unavailable or deselected environments never trigger model deletion.
 

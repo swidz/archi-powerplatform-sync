@@ -2,6 +2,10 @@
 
 ## Pipeline
 
+Version 0.2.0 adds [context-specific retrieval](context-workflow.md): `get-environments` creates Nodes, `get-solutions` uses selected environment context, and `get-*` component scripts use selected solution context. `context.js` validates the model selection, `scoped.js` collects bounded solution membership and component metadata, and `scoped-app.js` coordinates review/application. Most imported concepts reside in the Application layer, including solution Application Components and table/view Data Objects.
+
+The original environment-wide pipeline remains available:
+
 ```mermaid
 flowchart LR
   CLI[Azure CLI user session] --> AUTH[Per-audience token cache]
@@ -38,6 +42,9 @@ Role copies across business units are grouped by root role ID within one environ
 | Flow → agent | Serving | Dataverse `botcomponent_workflow` and parent/associated bot IDs |
 | Dependent app/flow → required app/flow | Association | Dataverse solution dependency record; does not assert runtime execution |
 | Security role → model-driven app | Association | `appmoduleroles_association`; describes app access configuration, not a user assignment |
+| Solution → app/flow/agent | Aggregation | Explicit solution membership |
+| Solution → table/view | Association | Explicit or table-root-inherited solution membership |
+| View → table | Association | `savedquery.returnedtypecode`; metadata relationship, not a query execution |
 
 All mappings are checked with jArchi's relationship validator before application. `PowerPlatform-InteractionKind` and `PowerPlatform-Evidence` retain the source, field and owner of each observation. A relationship with several observations retains evidence from unavailable collectors rather than losing it on a partial run.
 
@@ -50,6 +57,8 @@ Managed concepts, folders and relationships use `PowerPlatform-ManagedBy=archi-p
 Lifecycle properties follow the Azure tool's convention: `CreatedDate`, `CreatedTime`, `LastSyncDate`, `LastSyncTime`, `IsDeleted`, `DeletedDate`, `DeletedTime`. Additional observation properties distinguish observed, confirmed missing and missing/unverified objects. Repeated runs retain Archi GUIDs and original creation timestamps. Reappearance clears the deletion marker.
 
 Deletion confirmation is scoped to selected environments and enabled collectors. It requires a complete current Dataverse collection, discovery reporting `IsUserSysAdmin`, a saved Dataverse primary ID and a current GET returning 404. A 403, timeout or failed page never confirms absence. Missing environments, inventory-only objects and code apps are retained without automatic deletion. Role deselection is an explicit scope reduction and preserves the old role and its links.
+
+That object-deletion confirmation applies to the environment-wide workflow. Context scripts are non-destructive to absent objects: they can retire only completed relationship evidence, including the selected solution/type's membership. Membership owners include both solution identity and component kind, so shared components and other retrieval scopes remain independent. Existing imported endpoints can support new links without being updated as objects.
 
 Managed roots are created under the appropriate Archi categories, without relying on localized category names. Existing manual folders named `PowerPlatform` cause a preflight conflict. Edit the configured root or rename the conflicting manual folder before applying. Other folder conflicts can be detected during Apply; use Undo if the apply step fails.
 

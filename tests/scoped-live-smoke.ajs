@@ -1,0 +1,25 @@
+/* Opt-in: read selected live solutions and apply to a new disposable model. */
+(function(){
+    var root=String(Java.type('java.nio.file.Paths').get(__DIR__).getParent().toAbsolutePath());
+    ['core','auth','http','inventory','dependencies','dataverse','scoped','context','planner','cli-java','java-runtime','archi-adapter'].forEach(function(f){load(root+'/lib/'+f+'.js');});
+    var C=PPCore,System=Java.type('java.lang.System'),environmentId=C.envId(String(System.getenv('ARCHI_PP_TEST_ENVIRONMENT'))),solutionIds=String(System.getenv('ARCHI_PP_TEST_SOLUTIONS')).split(',').map(C.guid),auth=null,checks=[],runs=[];
+    function ok(value,message){C.assert(value,message);checks.push(message);}
+    try{
+        auth=PPAuth.create(PPCliJava.createIo());var http=PPHttp.create(PPJava.io,auth),discovery=PPInventory.create(http,auth.tenantId).discover(),env=discovery.environments.filter(function(e){return e.id===environmentId;})[0];
+        C.assert(env&&env.available,'Requested environment is unavailable.');var collector=PPScoped.create(http,auth.tenantId,function(s){console.log(s);});
+        var available=collector.solutions(env),chosen=available.filter(function(o){return solutionIds.indexOf(o.id)>=0;});ok(chosen.length===solutionIds.length,'Requested solutions discovered through Java HTTPS');
+        var m=$.model.create('Scoped live Power Platform test');m.setAsCurrent();
+        function sync(s){var p=PPPlanner.plan(PPArchi.elements(m),PPArchi.relationships(m),s,{},PPArchi.isAllowed);PPArchi.apply(m,p,PPArchi.prepare(m,p));return p;}
+        sync(PPScoped.environments(auth.tenantId,[env]));sync(collector.selectedSolutions(env,chosen,PPArchi.elements(m)));
+        chosen.forEach(function(solution){Object.keys(PPScoped.GROUPS).forEach(function(group){var s=collector.collect(env,solution.id,group,PPArchi.elements(m),{});sync(s);runs.push({solutionId:solution.id,group:group,coverage:s.coverage,objects:s.objects.length,edges:s.edges.length,unresolved:s.unresolved.length});
+            ok(s.coverage.every(function(c){return c.complete;}),'Complete '+group+' collection for selected solution '+(solutionIds.indexOf(solution.id)+1));
+        });});
+        var ids={};PPArchi.elements(m).forEach(function(e){ids[e.key]=e.elementId;});
+        chosen.forEach(function(solution){['applications','workflows','agents'].forEach(function(group){var s=collector.collect(env,solution.id,group,PPArchi.elements(m),{}),p=sync(s);ok(p.counts.create===0,'Repeated '+group+' retrieval reuses existing identities');});});
+        ok(PPArchi.elements(m).every(function(e){return ids[e.key]===e.elementId;}),'All component GUIDs survive scoped refresh');
+        var file=root+'/work/scoped-live-smoke.archimate';m.save(file);var loaded=$.model.load(file);
+        ok(PPArchi.elements(loaded).length===PPArchi.elements(m).length,'Scoped live model saves and reloads');
+        var counts={};PPArchi.elements(m).forEach(function(e){counts[e.kind]=(counts[e.kind]||0)+1;});
+        PPJava.write(root+'/work/scoped-live-smoke-result.json',JSON.stringify({status:'passed',checks:checks,solutionCount:available.length,counts:counts,relationships:PPArchi.relationships(m).length,runs:runs},null,2));console.log('POWERPLATFORM_SCOPED_LIVE_PASSED: '+checks.length);
+    }finally{if(auth)auth.clear();}
+}());

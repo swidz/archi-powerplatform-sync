@@ -1,0 +1,16 @@
+const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),C=require('../lib/core.js'),F=require('./fixtures.cjs');
+function run(config={}){
+ const writes=[],calls=[],alerts=[],properties={'PowerPlatform-EnvironmentIds':JSON.stringify([F.env2]),'PowerPlatform-RoleSelectionKeys':'["remembered"]'},chosen=[{id:F.env,name:'Environment',available:true}],snapshot=F.snapshot();
+ const collector={solutions(){calls.push('solutions');return [];},selectedSolutions(){return snapshot;},collect(env,solution,group){calls.push({env:env.id,solution,group});return snapshot;}};
+ const context={PPCore:C,console:{show(){},log(){}},model:{isSet:()=>true,prop(key,value){if(arguments.length===1)return properties[key];properties[key]=value;writes.push(key);}},window:{alert:s=>alerts.push(s)},
+  PPArchi:{context(){if(config.invalid)throw Error('Select a solution');return {tenantId:config.wrongTenant?F.ids.app:F.tenant,environmentId:F.env,solutionId:F.ids.child};},elements:()=>[],relationships:()=>[],prepare:()=>({}),isAllowed:()=>true,apply(){calls.push('apply');}},
+  PPCliJava:{createIo:()=>({})},PPJava:{io:{}},PPAuth:{create(){calls.push('auth');return {tenantId:F.tenant,clear(){calls.push('clear');}};}},PPHttp:{create:()=>({})},
+  PPInventory:{create:()=>({discover(){calls.push('discovery');return {environments:chosen,warnings:[],partial:false};}})},PPScoped:{create:()=>collector,environments(){calls.push('environments');return snapshot;}},
+  PPPlanner:{plan:()=>({operations:[],counts:{},partial:false})},PPUI:{environments:()=>chosen,solutions:()=>config.cancelSolutions?null:[],preview:()=>!config.cancel}};
+ vm.runInNewContext(fs.readFileSync(require.resolve('../lib/scoped-app.js'),'utf8'),context);context.PPScopedApp.run(config.action||'tables',{},[]);return {calls,writes,alerts,properties};
+}
+test('Invalid selection is rejected before authentication or discovery',()=>{const h=run({invalid:true});assert.deepEqual(h.calls,[]);assert.deepEqual(h.writes,[]);assert.ok(h.alerts[0].includes('Select a solution'));});
+test('Cross-tenant selection is rejected before metadata discovery',()=>{const h=run({wrongTenant:true});assert.ok(!h.calls.includes('discovery'));assert.ok(h.calls.includes('clear'));assert.deepEqual(h.writes,[]);});
+test('Context retrieval passes exactly the selected environment, solution and kind',()=>{const h=run();assert.deepEqual(h.calls.find(c=>typeof c==='object'),{env:F.env,solution:F.ids.child,group:'tables'});assert.ok(h.calls.includes('apply'));assert.deepEqual(h.writes,[]);assert.equal(h.properties['PowerPlatform-RoleSelectionKeys'],'["remembered"]');});
+test('Cancelling a context preview or solution picker performs no model writes',()=>{for(const config of [{cancel:true},{action:'solutions',cancelSolutions:true}]){const h=run(config);assert.ok(!h.calls.includes('apply'));assert.deepEqual(h.writes,[]);assert.ok(h.calls.includes('clear'));}});
+test('get-environments does not invoke solution or component collectors',()=>{const h=run({action:'environments'});assert.ok(h.calls.includes('environments'));assert.ok(!h.calls.includes('solutions'));assert.ok(!h.calls.some(c=>typeof c==='object'));assert.deepEqual(JSON.parse(h.properties['PowerPlatform-EnvironmentIds']),[F.env]);});

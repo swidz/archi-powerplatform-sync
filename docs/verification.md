@@ -24,7 +24,7 @@ The regression suite covers scoped and copied identities, source aliases, Datave
 
 `archi-smoke.ajs` creates a new synthetic model and checks 22 behaviors, including valid relationships, folder placement, stable GUIDs, diagram occurrence deduplication, manual documentation/properties/layout, manual links, copied environments, deselection, soft deletion/restoration and saving/reloading. It never opens a user's model.
 
-`ui-smoke.ajs` opens short-lived disposable SWT dialogs and drives real events. Eight assertions cover listing, filtering, selection retention, disabled rows, multi-selection, empty role selection and cancellation. The test runner requires a fresh success-result JSON file because an Archi command-line process may return zero even if a script throws.
+`ui-smoke.ajs` opens short-lived disposable SWT dialogs and drives real events. Ten assertions cover listing, filtering, selection retention, disabled rows, multi-selection, empty role selection, cancellation and the solution picker. The test runner requires a fresh success-result JSON file because an Archi command-line process may return zero even if a script throws.
 
 ## Opt-in live test
 
@@ -38,6 +38,27 @@ $env:ARCHI_PP_TEST_ENVIRONMENT = '<approved-environment-id>'
 The live test exercises the production Java CLI bridge and HTTPS transport, object collection, dependency resolution, ArchiMate validation, repeated application and model save/reload. It temporarily includes unmanaged role candidates in that test model to exercise role mapping; it does not select roles in another model or assert that every candidate is custom.
 
 ## Results on 2026-09-27
+
+### Version 0.2.0 context workflow
+
+The context extension adds regression coverage for explicit model selection, wrong-tenant rejection, cancellation, per-solution/type isolation, shared component IDs, inherited table-view membership, hidden-solution filtering, partial reads and compatibility with the bulk workflow.
+
+Final verification: **69 Node tests**, syntax checks for **44 JavaScript files**, **14 scoped Archi checks**, **22 bulk compatibility checks**, **10 SWT dialog checks**, and **19 live scoped integration checks** passed. A separate live read verified that the default solution filter lists **138 visible solutions** in the test environment.
+
+The live Java/Archi test exercised two selected solutions in the approved environment and all five component retrieval commands. All object collections completed; classic workflow subtypes were separately excluded. It produced **157 elements and 387 relationships**: 1 environment, 2 solutions, 2 apps, 23 cloud flows, 3 agents, 15 tables and 111 views. Repeated application/workflow/agent retrieval preserved all concept GUIDs. The model saved and reloaded successfully. Unimported dependency targets remain reported; complete object collection does not assert complete runtime dependency coverage.
+
+Run the additional real-Archi checks with:
+
+```powershell
+.\tools\test-archi.ps1 -BundlesFile '<effective-configuration>\org.eclipse.equinox.simpleconfigurator\bundles.info' -Script scoped-archi-smoke.ajs
+$env:ARCHI_PP_TEST_ENVIRONMENT = '<approved-environment-id>'
+$env:ARCHI_PP_TEST_SOLUTIONS = '<first-solution-id>,<second-solution-id>'
+.\tools\test-archi.ps1 -BundlesFile '<effective-configuration>\org.eclipse.equinox.simpleconfigurator\bundles.info' -Script scoped-live-smoke.ajs
+```
+
+The first script uses synthetic data and verifies tree/diagram context, Application-layer table/view types, membership removal without object deletion and manual-property preservation. The second makes real reads and writes only a new disposable model.
+
+### Version 0.1.0 baseline
 
 Verified with Archi **5.10.0**, jArchi **1.12.0**, GraalJS and Node **24.19.0** on Windows:
 

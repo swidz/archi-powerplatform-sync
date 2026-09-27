@@ -6,7 +6,7 @@
  var display=Display.getDefault(),checks=[],error=null;
  function ok(value,name){PPCore.assert(value,name);checks.push(name);}
  function walk(widget,list){list.push(widget);if(widget.getChildren)Java.from(widget.getChildren()).forEach(function(w){walk(w,list);});return list;}
- function automate(action){display.timerExec(350,function(){var dialog=Java.from(display.getShells()).filter(function(s){return String(s.getText()).indexOf('PP UI test')===0;})[0];
+ function automate(action,titlePrefix){display.timerExec(350,function(){var dialog=Java.from(display.getShells()).filter(function(s){return String(s.getText()).indexOf(titlePrefix||'PP UI test')===0;})[0];
   try{PPCore.assert(dialog,'Test dialog opened');action(dialog,walk(dialog,[]));}catch(e){error=e;if(dialog&&!dialog.isDisposed())dialog.close();}
  });}
  function type(w){return String(w.getClass().getSimpleName());}
@@ -25,5 +25,10 @@
  automate(function(dialog,w){click(button(w,'Clear selection'));ok(button(w,'Continue').getEnabled(),'Role selection permits an empty custom-role scope');click(button(w,'Continue'));});
  result=PPUI.picker('PP UI test roles','Disposable test',rows,columns,['1'],false,true);if(error)throw error;ok(result.length===0,'Clearing role selection returns no roles');
  automate(function(dialog,w){click(button(w,'Cancel'));});result=PPUI.picker('PP UI test cancel','Disposable test',rows,columns,[],false,false);if(error)throw error;ok(result===null,'Cancel returns without applying a selection');
+ var candidates=[{id:'solution-a',name:'Alpha',logicalName:'a',isManaged:false},{id:'solution-b',name:'Beta',logicalName:'b',isManaged:true}];
+ automate(function(dialog,w){var table=w.filter(function(x){return type(x)==='Table';})[0],search=w.filter(function(x){return type(x)==='Text';})[0];
+  ok(Java.from(table.getItems()).filter(function(i){return i.getChecked();}).length===1,'Solution picker restores only previously imported solutions');search.setText('Beta');click(button(w,'Select filtered'));click(button(w,'Continue'));
+ },'Select solutions');
+ result=PPUI.solutions({name:'PP UI test'},candidates,['solution-a']);if(error)throw error;ok(result.length===2&&result[0]===candidates[0]&&result[1]===candidates[1],'Solution picker returns the selected source objects');
  PPJava.write(root+'/work/ui-smoke-result.json',JSON.stringify({status:'passed',checks:checks},null,2));console.log('POWERPLATFORM_UI_SMOKE_PASSED: '+checks.length);
 }());

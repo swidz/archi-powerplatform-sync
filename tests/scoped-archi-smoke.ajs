@@ -1,0 +1,34 @@
+/* Offline focused-retrieval regression inside the real Archi runtime. */
+(function(){
+    var root=String(Java.type('java.nio.file.Paths').get(__DIR__).getParent().toAbsolutePath());
+    ['core','inventory','dependencies','dataverse','scoped','context','planner','java-runtime','archi-adapter'].forEach(function(f){load(root+'/lib/'+f+'.js');});
+    var C=PPCore,tenant='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',env={id:'11111111-1111-1111-1111-111111111111',name:'Test',url:'https://test.crm.dynamics.com',available:true};
+    var solutionId='88888888-8888-8888-8888-888888888888',appId='33333333-3333-3333-3333-333333333333',tableId='44444444-4444-4444-4444-444444444444',viewId='55555555-5555-5555-5555-555555555555';
+    var checks=[],members=[{componenttype:300,objectid:appId,_solutionid_value:solutionId},{componenttype:1,objectid:tableId,_solutionid_value:solutionId,rootcomponentbehavior:1},{componenttype:26,objectid:viewId,_solutionid_value:solutionId}];
+    var solution={solutionid:solutionId,friendlyname:'Solution A'},rows={canvasapps:[{canvasappid:appId,name:'App'}],EntityDefinitions:[{MetadataId:tableId,LogicalName:'account',DisplayName:{UserLocalizedLabel:{Label:'Account'}}}],savedqueries:[{savedqueryid:viewId,name:'Active accounts',returnedtypecode:'account'}]};
+    var http={request:function(){return solution;},pages:function(url,resource,cb){var decoded=decodeURIComponent(url),collection=decoded.split('/api/data/v9.2/')[1].split('?')[0];if(collection==='solutioncomponents')cb(members.filter(function(r){return decoded.indexOf('componenttype eq '+r.componenttype)>=0;}));else cb(rows[collection]||[]);}};
+    var m=$.model.create('Scoped Power Platform test');m.setAsCurrent();var collector=PPScoped.create(http,tenant);
+    function ok(value,message){C.assert(value,message);checks.push(message);}
+    function sync(s){var p=PPPlanner.plan(PPArchi.elements(m),PPArchi.relationships(m),s,{},PPArchi.isAllowed);PPArchi.apply(m,p,PPArchi.prepare(m,p));return p;}
+    function concept(kind){var found;$(m).find('element').each(function(item){var e=item.concept||item;if(String(e.prop(C.PREFIX+'ObjectType'))===kind)found=e;});return found;}
+    sync(PPScoped.environments(tenant,[env]));var environment=concept('environment');
+    ok(PPArchi.elements(m).length===1,'get-environments creates only its Node');ok(PPArchi.context([environment],'environment').environmentId===env.id,'Environment context resolves from model selection');
+    sync(collector.selectedSolutions(env,[PPScoped.normalize(tenant,env,'solution',solution)],PPArchi.elements(m)));var sol=concept('solution');
+    ok(String(sol.type)==='application-component','Solutions are Application Components');ok(PPArchi.context([sol],'solution').solutionId===solutionId,'Solution context resolves from tree selection');
+    ok(PPArchi.context($(sol),'solution').solutionId===solutionId,'Native jArchi selection collections resolve correctly');
+    var view=m.createArchimateView('Context test view'),visual=view.add(sol,40,50,150,70);
+    ok(PPArchi.context([visual],'solution').solutionId===solutionId,'Solution context resolves from a diagram occurrence');
+    ['applications','tables','views'].forEach(function(group){sync(collector.collect(env,solutionId,group,PPArchi.elements(m),{}));});
+    var app=concept('canvasapp'),table=concept('table'),dataView=concept('view'),appGuid=String(app.id);app.prop('Architect-Notes','keep');
+    ok(String(table.type)==='data-object'&&String(dataView.type)==='data-object','Tables and views are Application-layer Data Objects');
+    ok(PPArchi.relationships(m).some(function(r){return r.type==='aggregation-relationship'&&r.source===String(sol.prop(C.PREFIX+'Key'));}),'Application components have valid solution aggregation links');
+    ok(PPArchi.relationships(m).some(function(r){return r.source===String(dataView.prop(C.PREFIX+'Key'))&&r.target===String(table.prop(C.PREFIX+'Key'));}),'View-to-table association uses imported Data Objects');
+    var again=sync(collector.collect(env,solutionId,'applications',PPArchi.elements(m),{}));ok(again.counts.create===0&&String(app.id)===appGuid,'Repeat retrieval preserves component GUIDs');
+    members=members.filter(function(r){return r.componenttype!==300;});rows.canvasapps=[];
+    var remove=sync(collector.collect(env,solutionId,'applications',PPArchi.elements(m),{}));
+    ok(remove.counts.deleted===0&&String(app.prop('IsDeleted'))==='no','Leaving a solution does not delete its component');
+    ok(String(app.prop('Architect-Notes'))==='keep','Scoped refresh preserves manual properties');
+    ok(PPArchi.relationships(m).some(function(r){return r.type==='aggregation-relationship'&&r.properties.IsDeleted==='yes';}),'Only removed solution membership is soft-deleted');
+    var file=root+'/work/scoped-smoke.archimate';m.save(file);var loaded=$.model.load(file);ok(PPArchi.elements(loaded).length===5,'Focused retrieval saves and reloads without duplication');
+    PPJava.write(root+'/work/scoped-archi-smoke-result.json',JSON.stringify({status:'passed',checks:checks},null,2));console.log('POWERPLATFORM_SCOPED_ARCHI_PASSED: '+checks.length);
+}());

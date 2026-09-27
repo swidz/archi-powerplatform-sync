@@ -1,6 +1,6 @@
 # Archi Power Platform Sync
 
-Synchronize selected Power Platform environments, apps, cloud flows, Copilot Studio agents and custom Dataverse security roles into an open Archi model. Version **0.1.0**.
+Retrieve Power Platform environments, solutions and their components into an open Archi model using context-specific scripts. Version **0.2.0**. Apps, cloud flows, agents, tables and views can each be retrieved independently for a selected solution. The original environment-wide sync remains available for broader inventory and custom Dataverse security roles.
 
 The tool uses your existing **Azure CLI user sign-in**. It makes metadata reads, previews the resulting model changes, and updates the model only after you select **Apply**. Save and commit the model through your normal Archi/coArchi workflow. It does not write to Power Platform or commit an Archi repository automatically.
 
@@ -24,10 +24,12 @@ Requirements: Archi with jArchi using **GraalJS**, Azure CLI **2.54+**, and an i
 
    Or copy the entire package to `Documents\Archi\scripts\archi-powerplatform-sync`. Keep `scripts`, `lib` and `config` together. Refresh the jArchi Scripts tree if needed.
 
-3. Open the target Archi model. Run **archi-powerplatform-sync / scripts / Sync Power Platform.ajs**.
-4. Check one or more environments in the searchable popup. Optionally assign DEV, TEST, UAT, PROD, TRAINING or BACKUP stages to checked environments.
-5. Review the custom-role candidates and select only the roles relevant to your architecture.
-6. Review the counts and detailed Scripts output. Apply, inspect the model, then save it.
+3. Open the target Archi model. Run **archi-powerplatform-sync / scripts / get-environments.ajs**. Check the environments to import; optionally assign architecture stages. Review the preview and apply. This creates only environment Nodes.
+4. Select an imported environment Node in the model tree or a diagram. Run **get-solutions.ajs**, choose solutions in the searchable popup, review and apply.
+5. Select an imported solution Application Component. Run **get-applications.ajs**, **get-workflows.ajs**, **get-agents.ajs**, **get-tables.ajs** or **get-views.ajs** to retrieve that component type. Each command has its own preview.
+6. Inspect and save the model. Rerun a component command after importing its referenced components to resolve additional links.
+
+See the [context workflow guide](docs/context-workflow.md) for selection rules, shared components and the difference between solution membership and runtime dependencies.
 
 The initial environment selection is empty. Later runs remember environment and role IDs in the model. New environments remain unchecked. **Deselecting an environment or role preserves its existing elements and relationships.** Copied environments remain distinct even when object IDs and names match.
 
@@ -38,8 +40,11 @@ Each relevant Archi category gets a `PowerPlatform` root. There is no tenant fol
 ```text
 Technology / PowerPlatform / Environment [short ID] / Environment node
 Application / PowerPlatform / Environment [short ID] / Applications
+                                                      Solutions
                                                       Flows
                                                       Agents
+                                                      Tables
+                                                      Views
 Business / PowerPlatform / Environment [short ID] / Security Roles
 Relations / PowerPlatform / Environment [short ID] / Relationships
 ```
@@ -47,24 +52,29 @@ Relations / PowerPlatform / Environment [short ID] / Relationships
 | Source | ArchiMate element |
 | --- | --- |
 | Power Platform environment | Node |
+| Dataverse solution | Application Component |
 | Canvas, model-driven and code app | Application Component |
 | Power Automate cloud/agent flow | Application Component |
 | Copilot Studio agent | Application Component |
+| Dataverse table or system view | Data Object |
 | Selected custom Dataverse security role | Business Role |
 
-Environments **serve** their apps, flows and agents. Explicit child-flow calls use **Triggering**; flow tools **serve** their agents; declared solution dependencies and app-role access mappings use **Association**, with evidence properties describing the relationship. See [architecture and mappings](docs/architecture.md).
+Environments **serve** their solutions, apps, flows and agents. Solutions **aggregate** application components and have membership **associations** to tables and views. A view has a **view-of association** to its imported table. Explicit child-flow calls use **Triggering**; flow tools **serve** their agents; declared solution dependencies and app-role access mappings use **Association**. See [architecture and mappings](docs/architecture.md).
 
-Tables, views, plug-ins, business rules, users, teams, connections and connectors are not created as model elements. Source metadata may be queried to identify in-scope objects and dependencies. No diagrams are generated or rearranged.
+Tables and views are imported only when their specific solution-context script is run. Columns, plug-ins, business rules, users, teams, connections and connectors are not created as model elements. Dataverse views are represented as Data Objects; no Archi diagrams are generated or rearranged.
+
+Components shared by several solutions keep one element per environment, with multiple solution membership links. They remain in the environment's component-type folders, so retrieving another solution neither duplicates nor moves them.
 
 ## Other scripts
 
 | Script | Purpose |
 | --- | --- |
+| Sync Power Platform | Original environment-wide inventory, dependency discovery and custom-role review; does not discover solutions/tables/views |
 | Select Environments | Store environment choices and architecture stages without synchronizing |
 | Test Power Platform Connection | Read selected metadata and report counts, coverage and warnings |
 | Export Power Platform Inventory | Save the normalized inventory and evidence as JSON, without modifying the model |
 
-These scripts use the same environment picker. The diagnostic and export also offer the role picker. Exported inventory contains organization metadata and should be handled accordingly; it excludes access tokens, raw flow definitions, connection parameters and agent topic content.
+These compatibility scripts use the environment picker. The diagnostic and export also offer the role picker. Exported inventory contains organization metadata and should be handled accordingly; it excludes access tokens, raw flow definitions, connection parameters and agent topic content.
 
 ## Authentication and coverage
 
@@ -80,6 +90,7 @@ Custom-role classification is deliberately reviewable: Microsoft does not expose
 - Manual documentation, custom properties, diagrams and matching manual relationships are preserved. The synchronizer owns imported names, `PowerPlatform-*` properties, lifecycle properties and its managed folders/relationships.
 - Unobserved objects are preserved. A successful complete Dataverse read, an unrestricted organization context and a fresh primary-ID 404 are required to mark a previously imported Dataverse object deleted.
 - Deletion is a reversible `IsDeleted=yes` property update. Elements and relationships are never physically removed. A returning object reuses its original GUID.
+- Context scripts never mark absent component objects deleted. A complete refresh may retire a removed membership link for only the selected solution and component type. Other solution memberships remain intact.
 - Incomplete or unresolved dependency reads preserve prior evidence for the affected collection. Source records do not become links merely because they use the same connector.
 - Cancellation before Apply leaves the model unchanged. Apply errors require **Edit > Undo** before retrying. The model is never automatically saved.
 
@@ -92,6 +103,8 @@ npm test
 npm run check
 node tools/diagnose.cjs --list
 node tools/diagnose.cjs --environment <environment-id> --full --save work/my-inventory.json
+node tools/diagnose-scoped.cjs --environment <environment-id> --list-solutions
+node tools/diagnose-scoped.cjs --environment <environment-id> --solution <solution-id> --kind tables
 ```
 
 Real Archi/SWT tests and the opt-in live integration test are described in [verification](docs/verification.md). Generated test models and inventories are ignored by Git.
