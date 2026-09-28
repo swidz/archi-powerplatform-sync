@@ -1,6 +1,6 @@
 # Archi Power Platform Sync
 
-Retrieve Power Platform environments, solutions and their components into an open Archi model using context-specific scripts. Version **0.4.0**. Apps, cloud flows, agents, tables and views can each be retrieved for one or more selected solutions in a single batch. Plug-ins can be retrieved from selected solutions or tables. The original environment-wide sync remains available for broader inventory and custom Dataverse security roles.
+Retrieve Power Platform environments, solutions and their components into an open Archi model using context-specific scripts. Version **0.5.0**. Apps, cloud flows, agents, tables and views can each be retrieved for one or more selected solutions in a single batch. Plug-ins can be retrieved from selected solutions or tables. The original environment-wide sync remains available for broader inventory and custom Dataverse security roles.
 
 The tool uses your existing **Azure CLI user sign-in**. It makes metadata reads, previews the resulting model changes, and updates the model only after you select **Apply**. Save and commit the model through your normal Archi/coArchi workflow. It does not write to Power Platform or commit an Archi repository automatically.
 
@@ -88,6 +88,14 @@ No new app registration, client secret or PAC installation is needed for the ver
 Discovery combines the Power Platform environment API, Power Platform inventory in Azure Resource Graph and Dataverse Web API. The environment API and parts of the inventory schema are preview dependencies. Inventory can lag behind Dataverse. [Coverage and limitations](docs/coverage.md) explains what can and cannot establish a dependency or a deletion.
 
 Custom-role classification is deliberately reviewable: Microsoft does not expose a universal `isCustomRole` flag. Template and system-generated roles are excluded by default; other managed roles remain candidates, not automatically selected custom roles. Configure exact IDs or known solution publisher prefixes in [settings.js](config/settings.js) when useful.
+
+## Names and language
+
+Tables use their logical name (schema name if needed) as the Archi element name. Dataverse system views have no per-view logical/schema name, so their stable name is `<table-logical-name>.view.<savedqueryid>`. The display name is stored in `PowerPlatform-DisplayName` and `PowerPlatform-ObjectName`; `PowerPlatform-TechnicalName` records the identifier used as the element name.
+
+`config/settings.js` includes `labelLanguage:"en-US"` by default. This selects English metadata labels independently of the connected user's language. Supported language tags such as `pl-PL` and numeric Dataverse LCIDs are also accepted. The default also applies to preserved configuration files that omit this setting. See [naming and language behavior](docs/naming-and-language.md) for translation coverage and fallbacks.
+
+Rerun `get-tables` and `get-views`, review the preview and Apply to rename previously imported elements while retaining their GUIDs, relationships, manual notes and diagram occurrences.
 
 ## Reconciliation
 

@@ -55,7 +55,7 @@ Context runs record `PowerPlatform-LastSyncScope` on the model. Their success st
 
 ## Compatibility and installation
 
-Version 0.4.0 reuses 0.1.0–0.3.0 element identities, lifecycle properties and folder keys. No migration or reimport is required. Install the updated package with `tools/Install-ArchiScripts.ps1`; existing `config/settings.js` is preserved. Refresh the Scripts tree after installation. Single-element selection remains supported, subject to the same strict type checks.
+Version 0.5.0 reuses 0.1.0–0.4.0 element identities, lifecycle properties and folder keys. No migration or reimport is required. Install the updated package with `tools/Install-ArchiScripts.ps1`; existing `config/settings.js` is preserved. Refresh the Scripts tree after installation. Single-element selection remains supported, subject to the same strict type checks. The next table/view refresh applies technical element names to the existing concepts. The default label language is en-US even when the preserved settings file has no labelLanguage setting. See [names and language](naming-and-language.md).
 
 The original `Sync Power Platform`, `Select Environments`, connection diagnostic and inventory export remain available. Environment-wide sync leaves solutions/tables/views untouched when they are not part of its collection scope.
 

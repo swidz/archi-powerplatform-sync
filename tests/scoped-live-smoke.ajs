@@ -16,6 +16,9 @@
         Object.keys(PPScoped.GROUPS).forEach(function(group){var s=collector.collectMany(requests,group,PPArchi.elements(m),{});sync(s);runs.push({contexts:s.scope.contexts,group:group,coverage:s.coverage,objects:s.objects.length,edges:s.edges.length,unresolved:s.unresolved.length});
             ok(s.coverage.every(function(c){return c.complete;}),'Complete '+group+' collection across all selected solutions');
             ok(s.objects.length===C.unique(s.objects.map(function(o){return o.key;})).length,'No duplicate identities in '+group+' batch');
+            ok(!s.warnings.some(function(w){return /properties:|property schema:|localized label:|choice labels:/.test(w);}),group+' names and descriptive properties are readable');
+            if(group==='tables')ok(s.objects.filter(function(o){return o.kind==='table';}).every(function(o){return o.name===(o.logicalName||o.schemaName)&&o.name===o.technicalName;}),'Live table element names use technical identifiers');
+            if(group==='views')ok(s.objects.filter(function(o){return o.kind==='view';}).every(function(o){return o.name===o.tableLogicalName+'.view.'+o.dataverseId&&o.displayNameLanguageStatus==='requested'&&o.displayNameLanguageCode===1033;}),'Live view names are stable identifiers with English display properties');
         });
         var ids={};PPArchi.elements(m).forEach(function(e){ids[e.key]=e.elementId;});
         ['applications','workflows','agents'].forEach(function(group){var s=collector.collectMany(requests,group,PPArchi.elements(m),{}),p=sync(s);ok(p.counts.create===0,'Repeated '+group+' batch retrieval reuses existing identities');});

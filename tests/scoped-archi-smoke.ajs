@@ -21,6 +21,14 @@
     ['applications','tables','views'].forEach(function(group){sync(collector.collect(env,solutionId,group,PPArchi.elements(m),{}));});
     var app=concept('canvasapp'),table=concept('table'),dataView=concept('view'),appGuid=String(app.id);app.prop('Architect-Notes','keep');
     ok(String(table.type)==='data-object'&&String(dataView.type)==='data-object','Tables and views are Application-layer Data Objects');
+    ok(String(table.name)==='account'&&String(dataView.name)==='account.view.'+viewId,'Tables and views have technical names');
+    ok(String(table.prop(C.PREFIX+'DisplayName'))==='Account'&&String(dataView.prop(C.PREFIX+'DisplayName'))==='Active accounts','Display names remain in properties');
+    var tableGuid=String(table.id),viewGuid=String(dataView.id);table.name='Old localized table';dataView.name='Old localized view';table.prop('Architect-Notes','keep-table');table.documentation='Manual table documentation';
+    var tableVisual=view.add(table,240,50,150,70),visualGuid=String(tableVisual.id);
+    sync(collector.collect(env,solutionId,'tables',PPArchi.elements(m),{}));sync(collector.collect(env,solutionId,'views',PPArchi.elements(m),{}));
+    ok(String(table.id)===tableGuid&&String(dataView.id)===viewGuid,'Renaming existing tables and views preserves their Archi GUIDs');
+    ok(String(table.name)==='account'&&String(dataView.name)==='account.view.'+viewId,'Refresh replaces old localized element names');
+    ok(String(table.prop('Architect-Notes'))==='keep-table'&&String(table.documentation)==='Manual table documentation'&&String(tableVisual.id)===visualGuid,'Technical renaming preserves manual properties, documentation and diagram occurrences');
     ok(PPArchi.relationships(m).some(function(r){return r.type==='aggregation-relationship'&&r.source===String(sol.prop(C.PREFIX+'Key'));}),'Application components have valid solution aggregation links');
     ok(PPArchi.relationships(m).some(function(r){return r.source===String(dataView.prop(C.PREFIX+'Key'))&&r.target===String(table.prop(C.PREFIX+'Key'));}),'View-to-table association uses imported Data Objects');
     var again=sync(collector.collect(env,solutionId,'applications',PPArchi.elements(m),{}));ok(again.counts.create===0&&String(app.id)===appGuid,'Repeat retrieval preserves component GUIDs');

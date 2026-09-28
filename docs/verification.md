@@ -37,6 +37,14 @@ $env:ARCHI_PP_TEST_ENVIRONMENT = '<approved-environment-id>'
 
 The live test exercises the production Java CLI bridge and HTTPS transport, object collection, dependency resolution, ArchiMate validation, repeated application and model save/reload. It temporarily includes unmanaged role candidates in that test model to exercise role mapping; it does not select roles in another model or assert that every candidate is custom.
 
+## Results on 2026-09-28 — version 0.5.0
+
+Verified **117 Node tests**, syntax checks for **55 JavaScript files**, **32 scoped Archi checks**, **22 bulk Archi checks**, **13 plug-in Archi checks**, **27 live scoped checks** and **12 live plug-in checks**. The tests cover English selection ahead of a Polish user label, alternate language settings, deterministic missing-translation fallback, label-read failures, technical table/view names, and updates that preserve existing element GUIDs, manual properties/documentation and diagram occurrences.
+
+A narrow live read demonstrated the language difference directly: the connection returned a Polish system-view name, while RetrieveLocLabels returned its English translation. The table became account and the view received its table/GUID technical identifier; English display-name properties and an English Active choice label were verified. No user or organization language setting was changed.
+
+The two-solution live run verified all **15 table names** against logical/schema identifiers and all **111 view identifiers** with English (LCID 1033) display-name properties. The disposable model retained **175 elements and 423 relationships**, and refresh preserved every GUID. The live plug-in test again produced **42 elements**, **19 Access relationships** and **76 relationships total**, with localized choice metadata readable for plug-in assemblies and steps. Existing user models were not edited.
+
 ## Results on 2026-09-28 — version 0.4.0
 
 Verified **108 Node tests** and syntax checks for **54 JavaScript files**. Real-runtime checks passed: **13 plug-in Archi checks**, **27 scoped compatibility checks**, **22 bulk compatibility checks**, **12 SWT dialog checks**, **12 live plug-in checks**, and **19 live scoped checks**.

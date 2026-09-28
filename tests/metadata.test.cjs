@@ -14,21 +14,24 @@ test('Known payload and credential fields are excluded for every kind',()=>{
  const o=M.capture(F.object('flow'),'Dataverse',row,M.fields('flow'));assert.ok(!JSON.stringify(o).includes('SECRET'));
 });
 function fake(config={}){
- const calls=[];const http={pages(url,resource,cb){calls.push(url);
+ const calls=[],labelCalls=[];const http={request(method,url){labelCalls.push(url);return {Label:{LocalizedLabels:[{LanguageCode:1033,Label:'Flow'}]}};},pages(url,resource,cb){calls.push(url);
+  if(url.includes('/Attributes/Microsoft.Dynamics.CRM.'))return cb([{LogicalName:'statecode',OptionSet:{Options:[{Value:1,Label:{LocalizedLabels:[{LanguageCode:1033,Label:'Activated'},{LanguageCode:1045,Label:'Aktywowano'}],UserLocalizedLabel:{LanguageCode:1045,Label:'Aktywowano'}}}]}}]);
   if(url.includes('/Attributes?')){if(config.schemaFailure)throw C.readError('Denied',403);return cb([{LogicalName:'workflowid',AttributeType:'Uniqueidentifier',IsValidForRead:true},{LogicalName:'name',AttributeType:'String',IsValidForRead:true},{LogicalName:'ownerid',AttributeType:'Owner',IsValidForRead:true},{LogicalName:'statecode',AttributeType:'State',IsValidForRead:true},{LogicalName:'credentials',AttributeType:'Memo',IsValidForRead:true}]);}
   if(config.readFailure)throw C.readError('Denied',403);
   cb(config.missing?[]:[{workflowid:config.foreign?F.ids.app:F.ids.flow,name:'Flow',_ownerid_value:F.ids.role,statecode:1}]);
- }};const s=F.snapshot([F.object('flow')]);return {calls,http,s};
+ }};const s=F.snapshot([F.object('flow')]);return {calls,labelCalls,http,s};
 }
 test('Enrichment intersects allowed properties with readable schema and maps lookup field names',()=>{
- const f=fake();M.create(f.http).enrich(f.s,[env],{});assert.equal(f.calls.length,2);assert.ok(f.calls[1].includes('_ownerid_value'));assert.ok(!f.calls[1].includes('credentials')&&!f.calls[1].includes('modernflowtype'));
+ const f=fake();M.create(f.http).enrich(f.s,[env],{});assert.equal(f.calls.length,3);assert.ok(f.calls[1].includes('_ownerid_value'));assert.ok(!f.calls[1].includes('credentials')&&!f.calls[1].includes('modernflowtype'));
  assert.equal(C.properties(f.s.objects[0])['PowerPlatform-Metadata-Dataverse-_ownerid_value'],F.ids.role);assert.equal(f.s.partial,false);
+ assert.equal(C.properties(f.s.objects[0])['PowerPlatform-Metadata-Dataverse-statecode.Label'],'Activated');
+ assert.equal(C.properties(f.s.objects[0])['PowerPlatform-Metadata-Dataverse-statecode.LabelLanguage'],'1033');
 });
 test('Unsupported or denied property reads preserve existing values and report partial coverage',()=>{
- for(const config of [{schemaFailure:true},{readFailure:true},{missing:true}]){const f=fake(config);f.s.objects[0].metadata={'Dataverse-name':'Previously observed'};M.create(f.http).enrich(f.s,[env],{});assert.equal(f.s.objects[0].metadata['Dataverse-name'],'Previously observed');assert.equal(f.s.partial,true);}
+ for(const config of [{schemaFailure:true},{readFailure:true},{missing:true}]){const f=fake(config);f.s.objects[0].metadata={'Dataverse-description':'Previously observed'};M.create(f.http).enrich(f.s,[env],{});assert.equal(f.s.objects[0].metadata['Dataverse-description'],'Previously observed');assert.equal(f.s.partial,true);}
 });
 test('Property response outside requested IDs aborts before any model application',()=>{const f=fake({foreign:true});assert.throws(()=>M.create(f.http).enrich(f.s,[env],{}),/outside requested objects/);});
-test('Optional enrichment can be disabled without additional calls',()=>{const f=fake();M.create(f.http).enrich(f.s,[env],{includeElementMetadata:false});assert.equal(f.calls.length,0);});
+test('Disabling optional properties still retrieves names in the configured language',()=>{const f=fake();M.create(f.http).enrich(f.s,[env],{includeElementMetadata:false});assert.equal(f.calls.length,0);assert.equal(f.labelCalls.length,1);assert.equal(f.s.objects[0].name,'Flow');});
 test('Metadata from overlapping contexts is merged, including per-step registrations',()=>{
  const S=require('../lib/scoped.js'),a=S.environments(F.tenant,[env]),b=S.environments(F.tenant,[env]);for(const s of [a,b])s.scope={action:'get-plugins',environmentId:F.env,tableId:s===a?F.ids.app:F.ids.child};
  const plugin=F.object('plugin',F.ids.agent);a.objects.push({...plugin,metadata:{first:'a'},registrations:[{sdkmessageprocessingstepid:F.ids.app}]});b.objects.push({...plugin,metadata:{second:'b'},registrations:[{sdkmessageprocessingstepid:F.ids.child}]});

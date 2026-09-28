@@ -43,7 +43,7 @@ test('Partial membership and unreadable member metadata preserve existing member
 });
 test('Tables are Data Objects and table definitions never include attribute expansion',()=>{
  const fx=fixture({members:[member(1,F.ids.app)],rows:{EntityDefinitions:[{MetadataId:F.ids.app,LogicalName:'account',DisplayName:{UserLocalizedLabel:{Label:'Account'}},SchemaName:'Account',EntitySetName:'accounts'}]}}),s=fx.collect('tables');
- const table=s.objects.find(o=>o.kind==='table');assert.equal(C.TYPES[table.kind].base,'data-object');assert.equal(table.name,'Account');assert.ok(!fx.calls.some(url=>url.includes('Attributes')));assert.equal(s.edges[0].type,'association-relationship');
+ const table=s.objects.find(o=>o.kind==='table');assert.equal(C.TYPES[table.kind].base,'data-object');assert.equal(table.name,'account');assert.equal(C.properties(table)['PowerPlatform-DisplayName'],'Account');assert.ok(!fx.calls.some(url=>url.includes('Attributes')));assert.equal(s.edges[0].type,'association-relationship');
 });
 test('Views include all subcomponents only for explicitly include-all table roots',()=>{
  const rows={EntityDefinitions:[{MetadataId:F.ids.app,LogicalName:'account'}],savedqueries:[{savedqueryid:F.ids.child,name:'Active accounts',returnedtypecode:'account',fetchxml:'never retained'}]};
