@@ -37,6 +37,30 @@ $env:ARCHI_PP_TEST_ENVIRONMENT = '<approved-environment-id>'
 
 The live test exercises the production Java CLI bridge and HTTPS transport, object collection, dependency resolution, ArchiMate validation, repeated application and model save/reload. It temporarily includes unmanaged role candidates in that test model to exercise role mapping; it does not select roles in another model or assert that every candidate is custom.
 
+## Results on 2026-09-28 — version 0.4.0
+
+Verified **108 Node tests** and syntax checks for **54 JavaScript files**. Real-runtime checks passed: **13 plug-in Archi checks**, **27 scoped compatibility checks**, **22 bulk compatibility checks**, **12 SWT dialog checks**, **12 live plug-in checks**, and **19 live scoped checks**.
+
+The plug-in suite covers table and solution multi-selection, wrong/mixed types before authentication, direct type/assembly/step solution membership, shared types, copied environments, global registrations, workflow-activity exclusion, partial reads, relationship retirement across table/solution runs, metadata exclusion and preservation of manual content.
+
+The approved live plug-in test used two solutions and two tables. Its disposable model contained **37 plug-in types**, **2 tables**, **2 solutions** and **1 environment**, with **19 Access relationships**, **76 relationships total** and **2,813 added metadata properties**. A repeated table batch created no duplicate elements or links, retained every GUID, and saved/reloaded successfully. All Access relationships used the actual unspecified access type. Global registrations did not receive fabricated table links.
+
+The scoped live test exercised all six component groups with property enrichment. It produced **175 elements and 423 relationships**: 1 environment, 2 solutions, 2 apps, 23 flows, 3 agents, 15 tables, 111 views and 18 plug-in types. Static dependency targets outside the imported inventory remain reported; successful metadata retrieval does not assert full runtime dependency coverage.
+
+A separate read-only metadata audit checked available attributes for solution, canvasapp, appmodule, workflow, bot, savedquery, role, plugintype, pluginassembly and sdkmessageprocessingstep, plus table-definition properties. Additional-field reads succeeded for the existing app/flow/agent/view/role types. The [property catalogue](metadata-properties.md) records the exact allowlist and exclusions. Code/generic apps retain Resource Graph metadata coverage rather than a fabricated Dataverse mapping.
+
+Run the additional plug-in tests with:
+
+```powershell
+.\tools\test-archi.ps1 -BundlesFile '<effective-configuration>\org.eclipse.equinox.simpleconfigurator\bundles.info' -Script plugins-archi-smoke.ajs
+$env:ARCHI_PP_TEST_ENVIRONMENT = '<approved-environment-id>'
+$env:ARCHI_PP_TEST_SOLUTIONS = '<first-solution-id>,<second-solution-id>'
+$env:ARCHI_PP_TEST_TABLES = '<first-table-id>,<second-table-id>'
+.\tools\test-archi.ps1 -BundlesFile '<effective-configuration>\org.eclipse.equinox.simpleconfigurator\bundles.info' -Script plugins-live-smoke.ajs
+```
+
+These tests changed only new disposable models. Existing user models and Power Platform configuration were not modified.
+
 ## Results on 2026-09-27
 
 ### Version 0.3.0 batch selection

@@ -3,6 +3,8 @@ var POWERPLATFORM_SETTINGS={
     rootFolderName:"PowerPlatform",
     useSpecializations:false,
     discoverDependencies:true,
+    // Enrich imported elements with supported descriptive metadata fields.
+    includeElementMetadata:true,
     includeRoles:true,
     // Include hidden/internal solutions in get-solutions. Normally show platform-visible solutions only.
     includeHiddenSolutions:false,

@@ -2,16 +2,16 @@ const test=require('node:test'),assert=require('node:assert/strict'),vm=require(
 function run(config={}){
  const writes=[],calls=[],alerts=[],properties={'PowerPlatform-EnvironmentIds':JSON.stringify([F.env2]),'PowerPlatform-RoleSelectionKeys':'["remembered"]'};
  const envs=[{id:F.env,name:'First',url:'https://first.crm.dynamics.com',available:true},{id:F.env2,name:'Second',url:'https://second.crm.dynamics.com',available:!config.unavailable}];
- const action=config.action||'tables',kind=action==='solutions'?'environment':'solution';
+ const action=config.action||'tables',kind=config.selectionKind||(action==='solutions'?'environment':'solution');
  const selected=envs.map(e=>({...F.existing(F.object(kind,kind==='environment'?e.id:F.ids.app,e.id)),managed:true,inModel:true}));
  if(config.invalid)selected[1].kind='flow';if(config.wrongTenant)selected.forEach(e=>{e.tenantId=F.ids.agent;e.key=C.key(e.tenantId,e.environmentId,e.kind,e.id);});
  const candidates=envs.map(e=>S.normalize(F.tenant,e,'solution',{solutionid:F.ids.app,friendlyname:'Copied solution'}));
  const collector={solutions(env){calls.push('solutions:'+env.id);if(config.failLast&&env.id===F.env2)throw Error('Second context failed');return candidates.filter(o=>o.environmentId===env.id);},
   selectedSolutions:S.create({},F.tenant).selectedSolutions,
-  collectMany(requests,group){requests.forEach(r=>{calls.push({env:r.environment.id,solution:r.solutionId,group});if(config.failLast&&r.environment.id===F.env2)throw Error('Second context failed');});return S.environments(F.tenant,envs);}};
+  collectMany(requests,group){requests.forEach(r=>{calls.push(r.tableId?{env:r.environment.id,table:r.tableId,group}:{env:r.environment.id,solution:r.solutionId,group});if(config.failLast&&r.environment.id===F.env2)throw Error('Second context failed');});return S.environments(F.tenant,envs);}};
  let previewPlan,pickerArgs;
- const context={PPCore:C,console:{show(){},log(){}},model:{isSet:()=>true,prop(key,value){if(arguments.length===1)return properties[key];properties[key]=value;writes.push(key);}},window:{alert:s=>alerts.push(s)},
-  PPArchi:{context:items=>Context.resolve(items,kind),elements:()=>[F.existing(candidates[0])],relationships:()=>[],prepare:()=>({}),isAllowed:()=>true,apply(){calls.push('apply');}},
+ const context={PPCore:C,PPMetadata:{create:()=>({enrich(){}})},console:{show(){},log(){}},model:{isSet:()=>true,prop(key,value){if(arguments.length===1)return properties[key];properties[key]=value;writes.push(key);}},window:{alert:s=>alerts.push(s)},
+  PPArchi:{context:(items,level)=>Context.resolve(items,level),elements:()=>[F.existing(candidates[0])],relationships:()=>[],prepare:()=>({}),isAllowed:()=>true,apply(){calls.push('apply');}},
   PPCliJava:{createIo:()=>({})},PPJava:{io:{}},PPAuth:{create(){calls.push('auth');return {tenantId:F.tenant,clear(){calls.push('clear');}};}},PPHttp:{create:()=>({})},
   PPInventory:{create:()=>({discover(){calls.push('discovery');return {environments:envs,warnings:[],partial:false};}})},PPScoped:{...S,create:()=>collector},
   PPPlanner:{plan(old,rels,snapshot){previewPlan=snapshot;return {operations:[],counts:{},partial:false};}},PPUI:{environments:()=>[envs[0]],solutions(...args){pickerArgs=args;return config.cancelSolutions?null:[candidates[1]];},preview(){calls.push('preview');return !config.cancel;}}};
@@ -37,3 +37,8 @@ test('get-solutions uses one combined picker with environment-qualified keys and
  const objects=h.previewPlan.objects.filter(o=>o.kind==='solution');assert.equal(objects.length,1);assert.equal(objects[0].environmentId,F.env2);assert.equal(h.previewPlan.scope.contexts.length,2);
 });
 test('get-environments does not invoke solution or component collectors',()=>{const h=run({action:'environments'});assert.ok(!h.calls.some(c=>typeof c==='object'||String(c).startsWith('solutions:')));assert.deepEqual(JSON.parse(h.properties['PowerPlatform-EnvironmentIds']),[F.env]);});
+
+test('get-plugins forwards every selected table and shows one combined preview',()=>{
+ const h=run({action:'plugins',selectionKind:'table'});assert.deepEqual(h.calls.filter(c=>typeof c==='object'),[F.env,F.env2].map(env=>({env,table:F.ids.app,group:'plugins'})));assert.equal(h.calls.filter(c=>c==='preview').length,1);assert.ok(h.calls.includes('apply'));
+});
+test('Invalid table selection for get-plugins is rejected before authentication',()=>{const h=run({action:'plugins',selectionKind:'table',invalid:true});assert.deepEqual(h.calls,[]);assert.match(h.alerts[0],/wrong type/);});

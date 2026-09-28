@@ -1,7 +1,7 @@
 /* Real SWT event-loop test. Opens only short-lived disposable dialogs. */
 (function(){
  var root=String(Java.type('java.nio.file.Paths').get(__DIR__).getParent().toAbsolutePath());
- ['core','java-runtime','ui'].forEach(function(f){load(root+'/lib/'+f+'.js');});
+ ['core',"metadata",'java-runtime','ui'].forEach(function(f){load(root+'/lib/'+f+'.js');});
  var SWT=Java.type('org.eclipse.swt.SWT'),Display=Java.type('org.eclipse.swt.widgets.Display'),Event=Java.type('org.eclipse.swt.widgets.Event');
  var display=Display.getDefault(),checks=[],error=null;
  function ok(value,name){PPCore.assert(value,name);checks.push(name);}

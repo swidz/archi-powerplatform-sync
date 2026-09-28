@@ -11,6 +11,7 @@ The normal workflow is **environment → solution → component type**. Each sta
 | `get-agents.ajs` | One or more imported solution Application Components | Copilot Studio agents in those solutions |
 | `get-tables.ajs` | One or more imported solution Application Components | Table definitions represented as Data Objects |
 | `get-views.ajs` | One or more imported solution Application Components | System views represented as Data Objects |
+| `get-plugins.ajs` | One or more imported table Data Objects **or** solution Application Components; one context type per selection | Plug-in types and Access relationships to registered tables |
 
 Use Ctrl-click or Shift-click in the model tree on Windows to select several contexts, then run the desired script. Selection can also come from element occurrences in a diagram. Several occurrences of the same concept resolve to one context. Solutions may belong to different environments, provided they belong to the same tenant and active model. The signed-in tenant must match every selected context.
 
@@ -20,11 +21,13 @@ All selected environments must be available and have a readable Dataverse URL be
 
 The solution picker supports search, sorting and multi-selection across all selected environments, with Environment and Environment ID columns. Selection uses environment-qualified identities, so copies with the same solution GUID remain independent. It shows platform-visible solutions by default; set `includeHiddenSolutions:true` in `config/settings.js` to include internal/hidden solutions. New solutions start unchecked, while previously imported solutions are checked. Deselecting a solution preserves its existing content. There is no tenant folder or tenant element.
 
+**get-plugins** also supports multiple table contexts. Its selection must contain only tables or only solutions, never both. The [plug-in guide](plugins.md) explains registration scope and automatic table endpoints. Every retrieval script enriches observed elements using the [metadata property catalogue](metadata-properties.md) before the common preview.
+
 ## Layer and folder mapping
 
-Environments remain Technology-layer **Nodes**. Solutions, applications, flows and agents are Application-layer **Application Components**. Tables and system views are Application-layer **Data Objects**. Custom Dataverse roles retain their Business-layer **Business Role** mapping and are available through the original `Sync Power Platform` workflow.
+Environments remain Technology-layer **Nodes**. Solutions, applications, flows, agents and plug-ins are Application-layer **Application Components**. Tables and system views are Application-layer **Data Objects**. Custom Dataverse roles retain their Business-layer **Business Role** mapping and are available through the original `Sync Power Platform` workflow.
 
-Under each category, the root remains `PowerPlatform / Environment [short ID]`. The Application category contains sibling folders `Solutions`, `Applications`, `Flows`, `Agents`, `Tables` and `Views` as needed.
+Under each category, the root remains `PowerPlatform / Environment [short ID]`. The Application category contains sibling folders `Solutions`, `Applications`, `Flows`, `Agents`, `Tables`, `Views` and `Plugins` as needed.
 
 A component has one canonical identity per tenant/environment/kind/source ID, even when it belongs to several solutions. Membership is represented by links, rather than duplicate elements or placing a shared component into one solution's folder. Application components use **Aggregation** from the solution. Data Objects use **Association**, labelled through `PowerPlatform-InteractionKind=solution-member`. Membership describes packaging and does not assert runtime invocation.
 
@@ -52,7 +55,7 @@ Context runs record `PowerPlatform-LastSyncScope` on the model. Their success st
 
 ## Compatibility and installation
 
-Version 0.3.0 reuses 0.1.0 and 0.2.0 element identities, lifecycle properties and folder keys. No migration or reimport is required. Install the updated package with `tools/Install-ArchiScripts.ps1`; existing `config/settings.js` is preserved. Refresh the Scripts tree after installation. Single-element selection remains supported, subject to the same strict type checks.
+Version 0.4.0 reuses 0.1.0–0.3.0 element identities, lifecycle properties and folder keys. No migration or reimport is required. Install the updated package with `tools/Install-ArchiScripts.ps1`; existing `config/settings.js` is preserved. Refresh the Scripts tree after installation. Single-element selection remains supported, subject to the same strict type checks.
 
 The original `Sync Power Platform`, `Select Environments`, connection diagnostic and inventory export remain available. Environment-wide sync leaves solutions/tables/views untouched when they are not part of its collection scope.
 

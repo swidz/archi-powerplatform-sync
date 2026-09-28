@@ -1,0 +1,29 @@
+/* Real Archi plug-in mapping and metadata round-trip, using only synthetic source data. */
+(function(){
+ var root=String(Java.type('java.nio.file.Paths').get(__DIR__).getParent().toAbsolutePath());
+ ['core','metadata','inventory','dependencies','dataverse','scoped','plugins','context','planner','java-runtime','archi-adapter'].forEach(function(f){load(root+'/lib/'+f+'.js');});load(root+'/tests/plugins-fixture.js');
+ var F=PPPluginFixture,C=PPCore,checks=[],m=$.model.create('Plug-in test');m.setAsCurrent();
+ function ok(value,message){C.assert(value,message);checks.push(message);}
+ function sync(s){var p=PPPlanner.plan(PPArchi.elements(m),PPArchi.relationships(m),s,{},PPArchi.isAllowed);PPArchi.apply(m,p,PPArchi.prepare(m,p));return p;}
+ function collect(options,requests){return PPScoped.create(F.create(options).http,F.tenant).collectMany(requests||[{environment:F.env,solutionId:F.ids.solution}],'plugins',PPArchi.elements(m),{});}
+ sync(collect({}));var plugin,table,table2,sol,access;
+ $(m).find('element').each(function(e){var kind=String(e.prop(C.PREFIX+'ObjectType'));if(kind==='plugin')plugin=e;if(kind==='solution')sol=e;if(kind==='table'){if(String(e.prop(C.PREFIX+'ObjectId'))===F.ids.table)table=e;else table2=e;}});
+ $(m).find('relationship').each(function(r){if(String(r.type)==='access-relationship')access=r;});
+ ok(String(plugin.type)==='application-component','Plug-in types use Application Components');
+ ok(String($(plugin).parent().first().name)==='Plugins','Plug-ins are placed in the Plugins folder');
+ ok(PPArchi.relationships(m).filter(function(r){return r.type==='access-relationship';}).length===2,'Registered tables receive valid Access relationships');
+ ok(String(access.accessType)==='access','Access type is unspecified rather than inferred read or write');
+ ok(String(plugin.prop(C.PREFIX+'Metadata-Assembly-isolationmode'))==='2','Assembly metadata is stored as element properties');
+ ok(JSON.parse(String(plugin.prop(C.PREFIX+'Registrations'))).length===2,'Structured registration properties remain valid JSON');
+ var contexts=PPArchi.context([table,table2],'plugins',m);ok(contexts.length===2&&contexts.every(function(c){return !!c.tableId;}),'get-plugins accepts multiple table Data Objects');
+ ok(PPArchi.context([sol],'plugins',m)[0].solutionId===F.ids.solution,'get-plugins accepts solution context');
+ var rejected=false;try{PPArchi.context([table,sol],'plugins',m);}catch(e){rejected=true;}ok(rejected,'Mixed tables and solutions are rejected');
+ var guid=String(plugin.id);plugin.prop('Architect-Notes','keep');var plan=sync(collect({},contexts.map(function(c){return {environment:F.env,tableId:c.tableId};})));
+ ok(plan.counts.create===0&&String(plugin.id)===guid,'Multi-table retrieval reuses the same plug-in concept');
+ ok(String(plugin.prop('Architect-Notes'))==='keep','Plug-in refresh preserves manual properties');
+ var removed=sync(collect({empty:true},[{environment:F.env,tableId:F.ids.table}]));
+ ok(removed.counts.relationshipsDeleted===1&&String(plugin.prop('IsDeleted'))==='no','Removing a registration retires only its Access link');
+ var file=root+'/work/plugin-smoke.archimate';m.save(file);var loaded=$.model.load(file);
+ ok(PPArchi.elements(loaded).length===5,'Plug-in model saves and reloads without duplicates');
+ PPJava.write(root+'/work/plugins-archi-smoke-result.json',JSON.stringify({status:'passed',checks:checks},null,2));console.log('POWERPLATFORM_PLUGINS_ARCHI_PASSED: '+checks.length);
+}());

@@ -16,7 +16,7 @@ try {
   if(process.argv.includes('--full')){
    const Service=require('../lib/service.js');
    const collected=Service.collect(http,auth.tenantId,[env],[],{},line=>console.log(line));
-   Service.finish(collected,collected.roleCandidates.filter(c=>c.selected).map(c=>c.object.key));
+   Service.finish(collected,collected.roleCandidates.filter(c=>c.selected).map(c=>c.object.key));require('../lib/metadata.js').create(http).enrich(collected,[env],{});
    const types={};collected.objects.forEach(o=>types[o.kind]=(types[o.kind]||0)+1);
    console.log(JSON.stringify({fullCounts:types,edges:collected.edges.length,roleCandidates:collected.roleCandidates.length,coverage:collected.coverage,warnings:collected.warnings,unresolved:collected.unresolved.length},null,2));
    const saveAt=process.argv.indexOf('--save');if(saveAt>=0){const fs=require('node:fs'),path=require('node:path'),file=path.resolve(process.argv[saveAt+1]);fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,JSON.stringify(collected,null,2)+'\n');console.log('Sanitized snapshot written to requested path.');}

@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),vm=require(
 function harness(config={}){
  const properties={...(config.properties||{})},writes=[],alerts=[],calls=[],role=F.object('role'),snapshot=F.snapshot();snapshot.roleCandidates=[{object:role,selected:false}];snapshot.coverage=[{collector:'role',environmentId:F.env,complete:true}];
  const chosen=[{id:F.env,name:'Environment',available:true,stage:'PROD'}];
- const context={PPCore:C,console:{show(){},log(){}},model:{isSet:()=>true,prop(key,value){if(arguments.length===1)return properties[key];writes.push(key);properties[key]=value;}},
+ const context={PPCore:C,PPMetadata:{create:()=>({enrich(){}})},console:{show(){},log(){}},model:{isSet:()=>true,prop(key,value){if(arguments.length===1)return properties[key];writes.push(key);properties[key]=value;}},
   window:{confirm:()=>true,alert:s=>alerts.push(s),promptSaveFile:()=>null},
   PPCliJava:{createIo:()=>({})},PPJava:{io:{}},PPAuth:{create:()=>({tenantId:F.tenant,clear(){calls.push('clear');}})},PPHttp:{create:()=>({})},
   PPInventory:{create:()=>({discover:()=>({environments:chosen,warnings:[],partial:false})})},

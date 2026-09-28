@@ -9,9 +9,9 @@ try{
  const collector=S.create(http,auth.tenantId,line=>console.log(line));
  if(process.argv.includes('--list-solutions'))console.log(JSON.stringify(collector.solutions(env).map(o=>({id:o.id,name:o.name,version:o.version,managed:o.isManaged})),null,2));
  else{
-  const solution=C.guid(argument('--solution')),groups=process.argv.includes('--all')?Object.keys(S.GROUPS):[argument('--kind')];
+  const table=argument('--table'),solution=table?undefined:C.guid(argument('--solution')),groups=process.argv.includes('--all')?Object.keys(S.GROUPS):[argument('--kind')];
   let existing=[];const snapshots=[];
-  for(const group of groups){const snapshot=collector.collect(env,solution,group,existing,{});snapshots.push(snapshot);
+  for(const group of groups){C.assert(!table||group==='plugins','Table context supports only --kind plugins.');const snapshot=table?collector.collectMany([{environment:env,tableId:C.guid(table)}],group,existing,{}):collector.collect(env,solution,group,existing,{});require('../lib/metadata.js').create(http).enrich(snapshot,[env],{});snapshots.push(snapshot);
    console.log(JSON.stringify({scope:snapshot.scope,counts:snapshot.objects.reduce((a,o)=>(a[o.kind]=(a[o.kind]||0)+1,a),{}),edges:snapshot.edges.length,coverage:snapshot.coverage,warnings:snapshot.warnings}));
    snapshot.objects.forEach(o=>{existing=existing.filter(e=>e.key!==o.key);existing.push({...o,properties:{...C.properties(o),IsDeleted:'no'}});});
   }

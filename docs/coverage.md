@@ -1,6 +1,6 @@
 # Coverage and known limitations
 
-Version 0.2.0 adds solutions, table Data Objects and system-view Data Objects through explicit context scripts. See [context workflow](context-workflow.md). The original environment-wide collection remains available and keeps its previous EA-level scope; it does not automatically import tables or views.
+Version 0.4.0 includes solutions, table/system-view Data Objects, and plug-in Application Components through explicit context scripts. See [context workflow](context-workflow.md). The original environment-wide collection remains available and keeps its previous EA-level scope; it does not automatically import tables, views or plug-ins.
 
 ## Sources
 
@@ -10,7 +10,7 @@ Version 0.2.0 adds solutions, table Data Objects and system-view Data Objects th
 | Azure Resource Graph, `2022-10-01`, `PowerPlatformResources` | Selected-environment app, flow and agent inventory | Indexed and eventually consistent; not authoritative for deletion |
 | Dataverse global discovery v2.0 | Organization/API URLs and sysadmin context | Returns accessible organizations; does not replace tenant environment discovery |
 | Dataverse Web API v9.2 | Model-driven apps, canvas apps, cloud flows, agents, roles and supported relationship metadata | Effective organization read access is required; no reads of business data |
-| Scoped Dataverse solution membership | Solution metadata; requested apps/flows/agents/tables/views only | Requires a selected environment/solution; no object deletion inferred from removed membership |
+| Scoped Dataverse solution membership | Solution metadata; requested apps/flows/agents/tables/views/plug-ins | Requires a selected environment/solution; no object deletion inferred from removed membership |
 
 Environment discovery shows disabled and previously selected unavailable entries without allowing them to be checked. An epoch `deletedDateTime` is treated as the environment API's non-deleted sentinel. Unavailable or deselected environments never trigger model deletion.
 
@@ -19,13 +19,17 @@ Power Platform inventory includes published model-driven apps, whereas direct Da
 ## Apps, flows and agents
 
 - Canvas apps use `canvasapptype=0`, excluding custom pages and component libraries as standalone architecture components. Model-driven apps use `appmodules`.
-- Flows use Dataverse `workflow` records with `category=5` and `type=1`, plus inventory cloud/agent flows. Classic workflows, business rules, plug-ins and desktop automation internals are not imported.
+- Flows use Dataverse `workflow` records with `category=5` and `type=1`, plus inventory cloud/agent flows. Classic workflows, business rules and desktop automation internals are not imported by the flow collector. Plug-ins have a separate get-plugins command.
 - Flow definitions are inspected only for static child-flow Workflow actions, including nested branches and scopes. Arbitrary HTTP calls, dynamic workflow expressions and all connector operations are not resolved into component links.
 - App-to-flow relationships come from explicit Dataverse solution dependencies where both endpoints resolve. This does **not** comprehensively parse canvas Power Fx, unpack `.msapp` files or prove all runtime calls.
 - Agents use inventory and Dataverse `bot` metadata. Flow tools use `botcomponent_workflow` together with parent/associated bot IDs. Topics and their content are not model elements. Knowledge sources, websites, custom tools and external integrations are not comprehensively enumerated.
 - Matching connector IDs are descriptive metadata only. They do not prove that two components interact. HTTP endpoints and secrets are not retained from action inputs.
 
 Microsoft documents Dataverse APIs for programmatic flow management; this implementation avoids unsupported direct reliance on `api.flow.microsoft.com`.
+
+## Plug-ins and properties
+
+[get-plugins](plugins.md) accepts multiple tables or multiple solutions and uses explicit processing-step registrations for table Access relationships. It includes disabled registrations and managed/Microsoft types in the selected scope. Global/unbound registrations have no invented table links. Assemblies/steps are properties, not additional elements. The [property catalogue](metadata-properties.md) documents added fields and excluded payloads/secrets for every supported kind.
 
 ## Custom security roles
 

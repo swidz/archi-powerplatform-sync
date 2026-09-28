@@ -1,7 +1,7 @@
 /* Opt-in: real metadata reads, then synchronization into a NEW disposable model only. */
 (function(){
  var root=String(Java.type('java.nio.file.Paths').get(__DIR__).getParent().toAbsolutePath());
- ['core','auth','http','inventory','dependencies','dataverse','service','planner','cli-java','java-runtime','archi-adapter'].forEach(function(f){load(root+'/lib/'+f+'.js');});
+ ['core',"metadata",'auth','http','inventory','dependencies','dataverse','service','planner','cli-java','java-runtime','archi-adapter'].forEach(function(f){load(root+'/lib/'+f+'.js');});
  var C=PPCore,requested=Java.type('java.lang.System').getenv('ARCHI_PP_TEST_ENVIRONMENT');
  C.assert(requested,'Set ARCHI_PP_TEST_ENVIRONMENT to the approved environment ID.');var id=C.envId(String(requested)),auth=null,checks=[];
  function ok(value,message){C.assert(value,message);checks.push(message);}

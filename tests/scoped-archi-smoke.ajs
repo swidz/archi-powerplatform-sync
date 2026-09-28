@@ -1,7 +1,7 @@
 /* Offline focused-retrieval regression inside the real Archi runtime. */
 (function(){
     var root=String(Java.type('java.nio.file.Paths').get(__DIR__).getParent().toAbsolutePath());
-    ['core','inventory','dependencies','dataverse','scoped','context','planner','java-runtime','archi-adapter'].forEach(function(f){load(root+'/lib/'+f+'.js');});
+    ['core',"metadata",'inventory','dependencies','dataverse','scoped','plugins','context','planner','java-runtime','archi-adapter'].forEach(function(f){load(root+'/lib/'+f+'.js');});
     var C=PPCore,tenant='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',env={id:'11111111-1111-1111-1111-111111111111',name:'Test',url:'https://test.crm.dynamics.com',available:true};
     var solutionId='88888888-8888-8888-8888-888888888888',appId='33333333-3333-3333-3333-333333333333',tableId='44444444-4444-4444-4444-444444444444',viewId='55555555-5555-5555-5555-555555555555';
     var checks=[],members=[{componenttype:300,objectid:appId,_solutionid_value:solutionId},{componenttype:1,objectid:tableId,_solutionid_value:solutionId,rootcomponentbehavior:1},{componenttype:26,objectid:viewId,_solutionid_value:solutionId}];
