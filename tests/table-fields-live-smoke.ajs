@@ -1,0 +1,25 @@
+/* Opt-in metadata-only read of one table in an approved environment; disposable model only. */
+(function(){
+ var root=String(Java.type('java.nio.file.Paths').get(__DIR__).getParent().toAbsolutePath());
+ ['core','metadata','auth','http','inventory','dependencies','dataverse','scoped','plugins','context','planner','cli-java','java-runtime','archi-adapter'].forEach(function(f){load(root+'/lib/'+f+'.js');});
+ var C=PPCore,System=Java.type('java.lang.System'),environmentId=C.envId(String(System.getenv('ARCHI_PP_TEST_ENVIRONMENT'))),tableName=String(System.getenv('ARCHI_PP_TEST_TABLE')||'account'),auth,checks=[];
+ C.assert(/^[a-z][a-z0-9_]*$/.test(tableName),'Test table must be a logical name.');
+ function ok(value,message){C.assert(value,message);checks.push(message);}
+ try{
+  auth=PPAuth.create(PPCliJava.createIo());var http=PPHttp.create(PPJava.io,auth),discovery=PPInventory.create(http,auth.tenantId).discover(),env=discovery.environments.filter(function(e){return e.id===environmentId;})[0];
+  C.assert(env&&env.available,'Approved test environment is unavailable.');
+  var row=http.request('GET',C.dvOrigin(env.apiUrl||env.url)+"/api/data/v9.2/EntityDefinitions(LogicalName='"+tableName+"')?$select=MetadataId,LogicalName,SchemaName,DisplayName",C.dvOrigin(env.url)+'/');
+  var s=PPScoped.environments(auth.tenantId,[env]),o=PPScoped.normalize(auth.tenantId,env,'table',row);s.objects.push(o);
+  PPMetadata.create(http).enrich(s,[env],{});ok(!s.partial&&Array.isArray(o.tableFields)&&o.tableFields.length>0,'Live table fields and properties are readable');
+  ok(o.tableFields.every(function(f){return !!f.name&&!!f.type;}),'Every returned field has a technical name and data type');
+  var m=$.model.create('Live table field documentation test');m.setAsCurrent();var p=PPPlanner.plan([],[],s,{},PPArchi.isAllowed);PPArchi.apply(m,p,PPArchi.prepare(m,p));
+  var table=$(m).find('data-object').first(),documentation=String(table.documentation),guid=String(table.id),lines=documentation.match(/(?:^|\n)\d+\. \*\*/g)||[];
+  ok(p.counts.documentationUpdates===1&&lines.length===o.tableFields.length,'All live fields appear in the numbered Markdown Documentation');
+  ok(String(table.prop(C.PREFIX+'TableFieldCount'))===String(o.tableFields.length),'Field-count property matches the live metadata count');
+  table.documentation='Manual notes\n\n'+documentation;var again=PPPlanner.plan(PPArchi.elements(m),PPArchi.relationships(m),s,{},PPArchi.isAllowed);PPArchi.apply(m,again,PPArchi.prepare(m,again));
+  ok(again.counts.documentationUpdates===0&&String(table.id)===guid&&String(table.documentation).indexOf('Manual notes')===0,'Repeat application preserves manual notes and table identity');
+  var file=root+'/work/table-fields-live-smoke.archimate';m.save(file);var loaded=$.model.load(file),saved=PPArchi.elements(loaded).filter(function(e){return e.kind==='table';})[0];
+  ok(saved.elementId===guid&&saved.documentation===String(table.documentation),'Live field Documentation saves and reloads intact');
+  PPJava.write(root+'/work/table-fields-live-smoke-result.json',JSON.stringify({status:'passed',checks:checks,fieldCount:o.tableFields.length,englishLabels:o.tableFields.filter(function(f){return f.labelLanguageCode===1033;}).length},null,2));console.log('POWERPLATFORM_TABLE_FIELDS_LIVE_PASSED: '+checks.length+' checks, '+o.tableFields.length+' fields');
+ }finally{if(auth)auth.clear();}
+}());

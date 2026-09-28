@@ -33,6 +33,8 @@ If the preferred label is unavailable, selection falls back to an English (1033)
 
 Label responses and choice definitions are cached during enrichment. Record labels require additional read requests per object and attribute. Disabling includeElementMetadata skips the extended property and choice-label reads, but still retrieves localized object names.
 
+Table field lists in Documentation also use labelLanguage to select attribute DisplayName labels. Technical field names remain the primary identifiers. Field-list reads are controlled separately by includeTableFields and do not retrieve choice values or record data. See [field documentation](metadata-properties.md#table-field-documentation).
+
 ## Updating existing elements
 
 Run get-tables, get-views or get-plugins again and review the renamed elements in the common preview. Applying the update changes names and managed properties on the same concepts. Existing GUIDs, manual documentation, custom properties, relationships and diagram occurrences are preserved. PowerPlatform-ObjectName records the display name for tables/views and the friendly name for plug-ins; PowerPlatform-TechnicalName records their element name. The model remains unsaved until the user saves it.

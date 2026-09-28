@@ -1,6 +1,6 @@
 # Archi Power Platform Sync
 
-Retrieve Power Platform environments, solutions and their components into an open Archi model using context-specific scripts. Version **0.7.0**. Apps, cloud flows, agents, tables and views can each be retrieved for one or more selected solutions in a single batch. Plug-ins can be retrieved from selected solutions or tables. The original environment-wide sync remains available for broader inventory and custom Dataverse security roles.
+Retrieve Power Platform environments, solutions and their components into an open Archi model using context-specific scripts. Version **0.8.0**. Apps, cloud flows, agents, tables and views can each be retrieved for one or more selected solutions in a single batch. Plug-ins can be retrieved from selected solutions or tables. The original environment-wide sync remains available for broader inventory and custom Dataverse security roles.
 
 The tool uses your existing **Azure CLI user sign-in**. It makes metadata reads, previews the resulting model changes, and updates the model only after you select **Apply**. Save and commit the model through your normal Archi/coArchi workflow. It does not write to Power Platform or commit an Archi repository automatically.
 
@@ -93,6 +93,8 @@ Custom-role classification is deliberately reviewable: Microsoft does not expose
 
 Tables use their logical name (schema name if needed) as the Archi element name. Dataverse system views have no per-view logical/schema name, so their stable name is `<table-logical-name>.view.<savedqueryid>`. The display name is stored in `PowerPlatform-DisplayName` and `PowerPlatform-ObjectName`; `PowerPlatform-TechnicalName` records the identifier used as the element name.
 
+From version 0.8.0, `get-tables` also adds an **Available fields** section to each table's Documentation. It uses numbered Markdown entries with the technical field name, localized label and data type, sorted by technical name. Labels follow `labelLanguage` (default en-US). Refreshes replace only the generated section and preserve manual notes outside it. Field lists are also added to table definitions imported by `get-plugins`. See [table field documentation](docs/metadata-properties.md#table-field-documentation).
+
 Version 0.7.0 renames `get-workflows.ajs` to `get-flows.ajs` and maps flows to Application Processes. Refresh the Scripts tree, select one or more imported solutions, then run `get-flows`. Apply the preview to convert observed legacy flow Components and their solution membership links, retaining Archi IDs, properties and diagrams. The installer removes the old script entry and preserves settings. See [flow migration](docs/context-workflow.md#upgrading-existing-flows).
 
 Plug-ins use `PowerPlatform-PluginTypeName` (Dataverse `typename`) as the element name. Their friendly name stays in `PowerPlatform-DisplayName` and `PowerPlatform-ObjectName`. Rerun `get-plugins` from selected solutions or tables to refresh existing plug-in elements. From version 0.6.0, the preview also converts previously imported plug-in Components to Application Functions and their solution membership links to Associations. Archi IDs, properties, Access links and diagram occurrences are retained. See [plug-in migration](docs/plugins.md#upgrading-existing-plug-ins).
@@ -104,7 +106,7 @@ Rerun `get-tables` and `get-views`, review the preview and Apply to rename previ
 ## Reconciliation
 
 - Stable identities include tenant, environment, object kind and source ID; known source aliases preserve the same Archi concept when discovery sources differ between runs.
-- Manual documentation, custom properties, diagrams and matching manual relationships are preserved. The synchronizer owns imported names, `PowerPlatform-*` properties, lifecycle properties and its managed folders/relationships.
+- Manual documentation, custom properties, diagrams and matching manual relationships are preserved. The generated table-fields section is refreshed; manual Documentation outside its markers is preserved. The synchronizer owns imported names, `PowerPlatform-*` properties, lifecycle properties and its managed folders/relationships.
 - Unobserved objects are preserved. A successful complete Dataverse read, an unrestricted organization context and a fresh primary-ID 404 are required to mark a previously imported Dataverse object deleted.
 - Deletion is a reversible `IsDeleted=yes` property update. Elements and relationships are never physically removed. A returning object reuses its original GUID.
 - Context scripts never mark absent component objects deleted. A complete refresh may retire a removed membership link for only the selected solution and component type. Other solution memberships remain intact.

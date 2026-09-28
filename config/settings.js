@@ -7,6 +7,8 @@ var POWERPLATFORM_SETTINGS={
     discoverDependencies:true,
     // Enrich imported elements with supported descriptive metadata fields.
     includeElementMetadata:true,
+    // Add a numbered Markdown field list to table Documentation; preserve notes outside the generated section.
+    includeTableFields:true,
     includeRoles:true,
     // Include hidden/internal solutions in get-solutions. Normally show platform-visible solutions only.
     includeHiddenSolutions:false,

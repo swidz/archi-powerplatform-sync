@@ -6,9 +6,30 @@ Existing friendly properties such as PowerPlatform-Description, PowerPlatform-Ve
 
 ## Collection and preservation
 
-Additional metadata is read before the common preview/Apply step for every context script and the bulk sync/diagnostic/export workflow. Requests include only imported object IDs, in batches of 35. For Dataverse record types, the collector first checks readable attribute metadata and intersects it with this catalogue. It never uses $select=*. Attributes of business tables are not imported: attribute-schema queries concern the platform metadata types themselves (such as workflow and plugintype).
+Additional metadata is read before the common preview/Apply step for every context script and the bulk sync/diagnostic/export workflow. Requests include only imported object IDs, in batches of 35. For Dataverse record types, the collector first checks readable attribute metadata and intersects it with this catalogue. It never uses $select=*. Table Attributes metadata is also read to create the numbered field list in Documentation, as described below; fields do not become separate model concepts. Other attribute-schema queries concern platform metadata types such as workflow and plugintype.
 
-A denied schema/property request reports a warning and preserves previously stored values. Fields absent from a response or unsupported by that organization are not cleared. Manual properties remain unchanged. Set includeElementMetadata:false to skip additional property/schema/choice requests; properties already observed by the main collectors are still retained. Localized object-name reads remain enabled so this switch does not change element naming.
+A denied schema/property request reports a warning and preserves previously stored values. Fields absent from a response or unsupported by that organization are not cleared. Manual properties remain unchanged. Set includeElementMetadata:false to skip additional property/schema/choice requests; properties already observed by the main collectors are still retained. Localized object-name reads and table field lists remain enabled. Use includeTableFields:false to skip field-list reads independently.
+
+## Table field documentation
+
+Version 0.8.0 adds an **Available fields** section to the Documentation of every observed table. `get-tables` and table definitions retrieved by `get-plugins` participate. The list covers all field definitions returned for the table, including standard, custom and virtual fields, regardless of which field subcomponents were included in the selected solution. It reads definitions, never record values or field-security assignments.
+
+The collector requests `EntityDefinitions(<MetadataId>)/Attributes` with an explicit selection of `MetadataId`, `LogicalName`, `SchemaName`, `DisplayName`, `AttributeType` and `AttributeTypeName`. Logical names are preferred, with schema names as fallback. The configured `labelLanguage` (default en-US) selects labels using the same deterministic fallback as table names. Specialized attribute type names are preferred to the generic type, for example File rather than Virtual. Rows are sorted by technical name and formatted as numbered Markdown:
+
+```markdown
+## Available fields
+
+1. **accountid** — Account (Uniqueidentifier)
+2. **name** — Account Name (String)
+```
+
+The generated section is enclosed by `<!-- PowerPlatform:TableFields:begin -->` and `<!-- PowerPlatform:TableFields:end -->`. Keep personal notes outside these markers: refresh replaces their contents while preserving text before and after the section. Incomplete or duplicate marker pairs stop the update before any model changes. Authored metadata is escaped for Markdown; an empty successful response explicitly reports that no field definitions were returned.
+
+The common preview counts Documentation updates. Apply uses the existing Data Object, preserving IDs and diagrams, and supports Undo/Redo. If Documentation changes between collection and Apply, the run stops before writes so the latest manual notes can be included on retry. A failed or incomplete metadata read preserves the previous field list and reports a warning. Identical lists are not rewritten.
+
+`PowerPlatform-TableFieldCount` records the returned field count, and `PowerPlatform-TableFieldsLabelLanguage` records the preferred language. Both properties update only with a complete field list. `includeTableFields:true` is the default, including for preserved settings files without that setting. Set it to false to skip the additional request per observed table and leave existing field lists intact. This option is independent of `includeElementMetadata`.
+
+See Microsoft's [table and attribute metadata query documentation](https://learn.microsoft.com/en-us/power-apps/developer/data-platform/webapi/query-metadata-web-api#query-entitymetadata-attributes) for the source API.
 
 ## Source coverage
 

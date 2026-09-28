@@ -1,0 +1,32 @@
+/* Table Documentation updates in disposable Archi models, with mocked metadata. */
+(function(){
+ var root=String(Java.type('java.nio.file.Paths').get(__DIR__).getParent().toAbsolutePath());
+ ['core','metadata','inventory','dependencies','dataverse','scoped','plugins','context','planner','java-runtime','archi-adapter'].forEach(function(f){load(root+'/lib/'+f+'.js');});
+ var C=PPCore,tenant='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',env={id:'11111111-1111-1111-1111-111111111111',name:'Documentation test',url:'https://test.crm.dynamics.com'},id='33333333-3333-3333-3333-333333333333';
+ var m=$.model.create('Table field documentation test');m.setAsCurrent();
+ var method=Java.type('com.archimatetool.script.dom.model.ArchimateModelProxy').class.getDeclaredMethod('getEObject',Java.to([],'java.lang.Class[]'));method.setAccessible(true);var raw=method.invoke(m),Stack=Java.type('org.eclipse.gef.commands.CommandStack'),stack=new Stack();raw.setAdapter(Stack.class,stack);
+ var rows=[{LogicalName:'name',AttributeType:'String',DisplayName:{LocalizedLabels:[{LanguageCode:1033,Label:'Account Name'}],UserLocalizedLabel:{LanguageCode:1045,Label:'Nazwa'}}},{LogicalName:'accountid',AttributeType:'Uniqueidentifier'}],fail=false,checks=[];
+ var metadata=PPMetadata.create({pages:function(url,resource,cb){cb(rows);if(fail)throw C.readError('Incomplete fields',403);}});
+ function ok(value,message){C.assert(value,message);checks.push(message);}
+ function snapshot(){var s=PPScoped.environments(tenant,[env]);s.objects.push(PPScoped.normalize(tenant,env,'table',{MetadataId:id,LogicalName:'account'}));return s;}
+ function plan(s){return PPPlanner.plan(PPArchi.elements(m),PPArchi.relationships(m),s,{},PPArchi.isAllowed);}
+ function collect(){var s=snapshot();metadata.enrich(s,[env],{includeElementMetadata:false});return s;}
+ function table(){return $(m).find('data-object').filter(function(e){return String(e.prop(C.PREFIX+'ObjectId'))===id;}).first();}
+ var initial=plan(snapshot());PPArchi.apply(m,initial,PPArchi.prepare(m,initial));var e=table(),guid=String(e.id);e.documentation='Manual notes\r\nKeep this exact text.';e.prop('Architect-Notes','Keep');
+ var view=m.createArchimateView('Table documentation view'),visual=view.add(e,30,40,180,80),visualId=String(visual.id),bounds=JSON.stringify(visual.bounds),before=String(e.documentation);
+ var p=plan(collect()),prepared=PPArchi.prepare(m,p);ok(p.counts.documentationUpdates===1&&String(e.documentation)===before,'Preview counts the table field update without changing Documentation');
+ // Changes made during the preview must be caught before any operation is applied.
+ e.documentation=before+'\nNew manual note';var changed=String(e.documentation),blocked=false;try{PPArchi.apply(m,p,prepared);}catch(error){blocked=String(error.message).indexOf('documentation changed')>=0;}
+ ok(blocked&&String(e.documentation)===changed&&e.prop(C.PREFIX+'TableFieldCount')===null,'Late manual edits block application before metadata or Documentation changes');
+ p=plan(collect());var Handler=Java.type('com.archimatetool.script.commands.CommandHandler');Handler.finalise();Handler.init();PPArchi.apply(m,p,PPArchi.prepare(m,p));Handler.finalise();
+ var first=String(e.documentation);ok(first.indexOf(changed+'\n\n')===0&&first.indexOf('1. **accountid** (Uniqueidentifier)\n2. **name** — Account Name (String)')>=0,'Documentation contains a numbered Markdown field list after preserved manual notes');
+ ok(first.indexOf('Nazwa')<0&&String(e.prop(C.PREFIX+'TableFieldCount'))==='2','English labels and field-count property are stored');
+ ok(String(e.id)===guid&&String(e.prop('Architect-Notes'))==='Keep'&&String(visual.id)===visualId&&JSON.stringify(visual.bounds)===bounds,'Table identity, manual properties and diagram layout remain intact');
+ ok(stack.canUndo(),'Documentation update is undoable');stack.undo();ok(String(e.documentation)===changed,'Undo restores the exact previous Documentation');stack.redo();ok(String(e.documentation)===first,'Redo restores the complete field list');Handler.init();
+ var repeat=plan(collect());ok(repeat.counts.documentationUpdates===0,'An identical refresh does not duplicate or rewrite the generated section');
+ e.documentation=first+'\n\nNotes after the list';rows=[{LogicalName:'accountid',AttributeType:'Uniqueidentifier'},{LogicalName:'emailaddress1',AttributeType:'String'}];p=plan(collect());PPArchi.apply(m,p,PPArchi.prepare(m,p));var updated=String(e.documentation);
+ ok(updated.indexOf('**name**')<0&&updated.indexOf('**emailaddress1**')>=0&&updated.indexOf(changed)===0&&updated.endsWith('Notes after the list'),'Changed field sets replace only the generated list and retain notes before and after it');
+ fail=true;p=plan(collect());PPArchi.apply(m,p,PPArchi.prepare(m,p));ok(p.partial&&p.counts.documentationUpdates===0&&String(e.documentation)===updated,'A partial field read preserves the complete previous Documentation');
+ var file=root+'/work/table-fields-smoke.archimate';m.save(file);var loaded=$.model.load(file),saved=PPArchi.elements(loaded).filter(function(o){return o.kind==='table';})[0];ok(saved.elementId===guid&&saved.documentation===updated,'Markdown Documentation survives model save and reload');
+ PPJava.write(root+'/work/table-fields-archi-smoke-result.json',JSON.stringify({status:'passed',checks:checks},null,2));console.log('POWERPLATFORM_TABLE_FIELDS_PASSED: '+checks.length);
+}());
