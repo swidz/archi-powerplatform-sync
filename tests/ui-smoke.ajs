@@ -41,5 +41,26 @@
  automate(function(dialog,w){click(button(w,'Clear selection'));ok(button(w,'Continue').getEnabled(),'Component selection allows an explicit empty scope');click(button(w,'Continue'));},'Select views');
  result=PPUI.components('views',tables.map(function(t){return Object.assign({},t,{kind:'view'});}),[]);if(error)throw error;ok(result.length===0,'An empty component selection returns no objects');
  automate(function(dialog,w){click(button(w,'Cancel'));},'Select flows');result=PPUI.components('flows',tables.map(function(t){return Object.assign({},t,{kind:'flow'});}),[]);if(error)throw error;ok(result===null,'Cancelling a component picker returns no selection');
+ var repairs={relationshipTypeChanges:[{id:'link-a',manual:true,sourceName:'Solution A',targetName:'Contoso.Plugin',targetBase:'application-function',environmentName:'Production'},{id:'link-b',manual:true,sourceName:'Solution B',targetName:'Cloud flow',targetBase:'application-process',environmentName:'Development'}]};
+ automate(function(dialog,w){var table=w.filter(function(x){return type(x)==='Table';})[0],search=w.filter(function(x){return type(x)==='Text';})[0];
+  ok(table.getItemCount()===2&&!button(w,'Continue').getEnabled(),'Repair review lists named links and requires explicit selection');
+  search.setText('Contoso.Plugin');click(button(w,'Select filtered'));ok(!button(w,'Continue').getEnabled(),'A partial repair selection cannot continue');
+  search.setText('');click(button(w,'Select filtered'));ok(button(w,'Continue').getEnabled(),'Checking every proposed repair enables Continue');click(button(w,'Continue'));
+ },'Review solution link repairs');result=PPUI.reviewMigration(repairs);if(error)throw error;
+ ok(result&&repairs.relationshipTypeChanges.every(function(op){return !op.approved;}),'Repair review alone does not authorize model application');
+ automate(function(dialog,w){click(button(w,'Cancel'));},'Review solution link repairs');result=PPUI.reviewMigration(repairs);if(error)throw error;ok(!result,'Cancelling repair review stops the retrieval');
+ ok(PPUI.reviewMigration({relationshipTypeChanges:[]})===true,'Ordinary retrieval skips the repair dialog');
+ var actualWindow=window,confirmationText='',accept=false;
+ try{
+  window={confirm:function(text){confirmationText=text;return accept;}};
+  repairs.counts={create:0,update:1,restore:0,deleted:0,missing:0,relationshipTypeChanges:2,relationshipsCreate:0,relationshipsUpdate:0,relationshipsDeleted:0,manualReused:1};
+  repairs.operations=[];repairs.warnings=[];repairs.unresolved=[];repairs.options={rootFolderName:'PowerPlatform'};
+  automate(function(dialog,w){click(button(w,'Select filtered'));click(button(w,'Continue'));},'Review solution link repairs');result=PPUI.preview(repairs);if(error)throw error;
+  ok(!result&&repairs.relationshipTypeChanges.every(function(op){return !op.approved;}),'Cancelling the final preview does not approve reviewed repairs');
+  accept=true;automate(function(dialog,w){click(button(w,'Select filtered'));click(button(w,'Continue'));},'Review solution link repairs');result=PPUI.preview(repairs);if(error)throw error;
+  ok(result&&repairs.relationshipTypeChanges.every(function(op){return op.approved===true;})&&confirmationText.indexOf('Reviewed manual solution links to repair: 2')>=0,'The final preview explicitly includes and authorizes reviewed repairs');
+  automate(function(dialog,w){click(button(w,'Cancel'));},'Review solution link repairs');result=PPUI.preview(repairs);if(error)throw error;
+  ok(!result&&repairs.relationshipTypeChanges.every(function(op){return !op.approved;}),'Reopening and cancelling review clears any previous repair approval');
+ }finally{window=actualWindow;}
  PPJava.write(root+'/work/ui-smoke-result.json',JSON.stringify({status:'passed',checks:checks},null,2));console.log('POWERPLATFORM_UI_SMOKE_PASSED: '+checks.length);
 }());

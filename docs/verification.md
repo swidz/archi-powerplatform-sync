@@ -24,7 +24,7 @@ The regression suite covers scoped and copied identities, source aliases, Datave
 
 `archi-smoke.ajs` creates a new synthetic model and checks 22 behaviors, including valid relationships, folder placement, stable GUIDs, diagram occurrence deduplication, manual documentation/properties/layout, manual links, copied environments, deselection, soft deletion/restoration and saving/reloading. It never opens a user's model.
 
-`ui-smoke.ajs` opens short-lived disposable SWT dialogs and drives real events. Twelve assertions cover listing, filtering, selection retention, disabled rows, multi-selection, empty role selection, cancellation and independent selection of copied solution IDs across environments. The test runner requires a fresh success-result JSON file because an Archi command-line process may return zero even if a script throws.
+`ui-smoke.ajs` opens short-lived disposable SWT dialogs and drives real events. It covers listing, filtering, selection retention, disabled rows, multi-selection, empty selection, cancellation, independent selection of copied solution IDs across environments and explicit review of manual relationship repairs. The test runner requires a fresh success-result JSON file because an Archi command-line process may return zero even if a script throws.
 
 ## Opt-in live test
 
@@ -36,6 +36,14 @@ $env:ARCHI_PP_TEST_ENVIRONMENT = '<approved-environment-id>'
 ```
 
 The live test exercises the production Java CLI bridge and HTTPS transport, object collection, dependency resolution, ArchiMate validation, repeated application and model save/reload. It temporarily includes unmanaged role candidates in that test model to exercise role mapping; it does not select roles in another model or assert that every candidate is custom.
+
+## Results on 2026-09-29 — version 0.9.1
+
+Verified **151 Node tests**, syntax checks for **64 JavaScript files**, **28 native SWT picker/review checks**, **24 manual relationship repair checks**, **18 plug-in Function migration checks** and **21 flow Process migration checks**.
+
+The repair suite reproduces unowned solution-to-plug-in and solution-to-flow Aggregations. It verifies no mutation before explicit approval, readable errors for unrelated invalid links, ownership revalidation after review, stable concept/relationship IDs, manual and repeated properties, documentation, diagram connections/layout, an existing Association on the same endpoints, Undo/Redo, repeated retrieval and save/reload. The review dialog requires all proposed repairs to be checked; cancelling review or the final preview does not authorize application.
+
+The exact reported relationship was also validated in a disposable copy of the saved model: the link became an Association and the plug-in an Application Function, keeping their original IDs through save/reload (**5 checks**). The original file's SHA256 was unchanged. No Power Platform API calls or changes to the user's open model were made. Run the added synthetic native test with `tools/test-archi.ps1 -BundlesFile '<effective-configuration>/org.eclipse.equinox.simpleconfigurator/bundles.info' -Script manual-membership-archi-smoke.ajs`.
 
 ## Results on 2026-09-28 — version 0.9.0
 

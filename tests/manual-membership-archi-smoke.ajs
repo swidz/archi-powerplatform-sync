@@ -1,0 +1,43 @@
+/* Reviewed repair of unowned solution Aggregations, only in disposable models. */
+(function(){
+ var root=String(Java.type('java.nio.file.Paths').get(__DIR__).getParent().toAbsolutePath());
+ ['core','metadata','inventory','planner','java-runtime','archi-adapter'].forEach(function(f){load(root+'/lib/'+f+'.js');});
+ var C=PPCore,checks=[],tenant='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',env={id:'11111111-1111-1111-1111-111111111111',name:'Repair test'},ids={solution:'88888888-8888-8888-8888-888888888888',target:'33333333-3333-3333-3333-333333333333'};
+ function ok(value,message){C.assert(value,message);checks.push(message);}
+ ['plugin','flow'].forEach(function(kind){
+  var m=$.model.create('Manual '+kind+' membership repair');m.setAsCurrent();
+  var method=Java.type('com.archimatetool.script.dom.model.ArchimateModelProxy').class.getDeclaredMethod('getEObject',Java.to([],'java.lang.Class[]'));method.setAccessible(true);
+  var raw=method.invoke(m),Stack=Java.type('org.eclipse.gef.commands.CommandStack'),stack=new Stack();raw.setAdapter(Stack.class,stack);
+  var environment=PPInventory.base(tenant,env,'environment',env.id,env.name),solution=PPInventory.base(tenant,env,'solution',ids.solution,'Test solution'),target=PPInventory.base(tenant,env,kind,ids.target,'Test '+kind),concepts={};
+  [environment,solution,target].forEach(function(o){var e=m.createElement(o.kind==='environment'?'node':'application-component',o.name);Object.keys(C.properties(o)).forEach(function(k){e.prop(k,C.properties(o)[k]);});e.prop('IsDeleted','no');concepts[o.key]=String(e.id);});
+  function find(id){return $(m).find('#'+id).first();}
+  var source=find(concepts[solution.key]),element=find(concepts[target.key]),link=m.createRelationship('aggregation-relationship','Manual packaging',source,element),linkId=String(link.id);
+  link.documentation='Manual relationship documentation';link.prop('Architect-Notes','Keep');link.prop('Repeated-note','First',true);link.prop('Repeated-note','Second',true);
+  var sibling=m.createRelationship('association-relationship','Existing separate association',source,element),siblingId=String(sibling.id);
+  var view=m.createArchimateView('Manual membership diagram'),a=view.add(source,30,40,160,70),b=view.add(element,310,40,180,80),connection=view.add(link,a,b),connectionId=String(connection.id),bounds=JSON.stringify(b.bounds);
+  var edge={source:solution.key,target:target.key,type:'association-relationship',evidence:{owner:solution.key+'|members|'+kind,source:'solutioncomponent',field:'objectid',interaction:'solution-member'}};
+  var snapshot={tenantId:tenant,environmentIds:[env.id],collectedAt:'2026-09-29T12:00:00Z',objects:[environment,solution,target],edges:[edge],warnings:[],unresolved:[],partial:false,coverage:[],scope:{action:'get-'+kind,selectedObjectKeys:[target.key]}};
+  function plan(){return PPPlanner.plan(PPArchi.elements(m),PPArchi.relationships(m),snapshot,{},PPArchi.isAllowed);}
+  var p=plan(),prepared=PPArchi.prepare(m,p);
+  ok(p.relationshipTypeChanges.length===1&&p.relationshipTypeChanges[0].manual&&String(find(linkId).type)==='aggregation-relationship'&&String(find(concepts[target.key]).type)==='application-component',kind+': preparation proposes the repair without changing the model');
+  var blocked=false;try{PPArchi.apply(m,p,prepared);}catch(e){blocked=String(e.message).indexOf('reviewed and approved')>=0;}
+  ok(blocked&&String(find(linkId).type)==='aggregation-relationship'&&String(find(concepts[target.key]).type)==='application-component',kind+': unapproved repair cannot mutate the model');
+  var manual=m.createElement('application-component','Unrelated manual app'),invalid=m.createRelationship('aggregation-relationship','Unsupported grouping',manual,element),invalidId=String(invalid.id);blocked=false;
+  try{PPArchi.prepare(m,p);}catch(e){blocked=String(e.message).indexOf(invalidId)>=0&&String(e.message).indexOf('Unrelated manual app')>=0;}
+  ok(blocked&&String(find(linkId).type)==='aggregation-relationship',kind+': unrelated manual Aggregations still block before any repair, with readable endpoint names');invalid.delete();
+  p.relationshipTypeChanges[0].approved=true;link.prop(C.PREFIX+'ManagedBy','another-tool');blocked=false;
+  try{PPArchi.apply(m,p,prepared);}catch(e){blocked=String(e.message).indexOf('changed after review')>=0;}
+  ok(blocked&&String(find(concepts[target.key]).type)==='application-component',kind+': ownership changes after review block every mutation');link.removeProp(C.PREFIX+'ManagedBy');
+  var Handler=Java.type('com.archimatetool.script.commands.CommandHandler');Handler.finalise();Handler.init();PPArchi.apply(m,p,PPArchi.prepare(m,p));Handler.finalise();
+  ok(String(find(linkId).type)==='association-relationship'&&String(find(concepts[target.key]).type)===C.TYPES[kind].base,kind+': reviewed repair preserves relationship and element IDs');
+  ok(String(find(siblingId).name)==='Existing separate association'&&String(find(siblingId).type)==='association-relationship',kind+': a preexisting Association on the same endpoints is not confused with the converted link');
+  ok(String(find(linkId).name)==='Manual packaging'&&String(find(linkId).documentation)==='Manual relationship documentation'&&String(find(linkId).prop('Architect-Notes'))==='Keep'&&find(linkId).prop('Repeated-note',true).size()===2&&!find(linkId).prop(C.PREFIX+'ManagedBy'),kind+': relationship names, documentation, repeated properties and manual ownership survive');
+  ok(String(connection.id)===connectionId&&String(connection.concept.id)===linkId&&String(connection.concept.type)==='association-relationship'&&String(b.concept.id)===concepts[target.key]&&JSON.stringify(b.bounds)===bounds,kind+': diagram connection and occurrence IDs and layout survive');
+  stack.undo();ok(String(find(linkId).type)==='aggregation-relationship'&&String(find(concepts[target.key]).type)==='application-component'&&String(connection.concept.id)===linkId,kind+': Undo restores both original types and diagram references');
+  stack.redo();ok(String(find(linkId).type)==='association-relationship'&&String(find(concepts[target.key]).type)===C.TYPES[kind].base,kind+': Redo restores the reviewed repair');Handler.init();
+  var repeat=plan();ok(repeat.counts.typeChanges===0&&repeat.counts.relationshipTypeChanges===0&&repeat.counts.relationshipsCreate===0&&repeat.counts.manualReused===1,kind+': repeated retrieval reuses the repaired manual link without duplicates');
+  var file=root+'/work/manual-membership-'+kind+'.archimate';m.save(file);var loaded=$.model.load(file);
+  ok(String($(loaded).find('#'+linkId).first().type)==='association-relationship'&&String($(loaded).find('#'+concepts[target.key]).first().type)===C.TYPES[kind].base,kind+': repaired types and IDs survive save and reload');
+ });
+ PPJava.write(root+'/work/manual-membership-archi-smoke-result.json',JSON.stringify({status:'passed',checks:checks},null,2));console.log('POWERPLATFORM_MANUAL_MEMBERSHIP_PASSED: '+checks.length);
+}());
