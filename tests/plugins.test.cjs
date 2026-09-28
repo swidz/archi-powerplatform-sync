@@ -2,9 +2,9 @@ const test=require('node:test'),assert=require('node:assert/strict'),C=require('
 function collect(options={},requests=[{environment:F.env,solutionId:F.ids.solution}],old=[]){const fx=F.create(options),snapshot=S.create(fx.http,F.tenant).collectMany(requests,'plugins',old,{});return {snapshot,fx};}
 function existing(s){return s.objects.map(o=>({...o,elementId:o.key,base:C.TYPES[o.kind].base,properties:{...C.properties(o),IsDeleted:'no'}}));}
 function rels(s){return s.edges.map((e,i)=>({...e,id:'r'+i,managed:true,evidence:[e.evidence],properties:{IsDeleted:'no'}}));}
-test('Solution plug-ins create Application Components and Access links to registered Data Objects',()=>{
- const {snapshot:s}=collect(),plugin=s.objects.find(o=>o.kind==='plugin');assert.equal(C.TYPES.plugin.base,'application-component');assert.equal(s.objects.filter(o=>o.kind==='table').length,2);
- assert.equal(s.edges.filter(e=>e.type==='access-relationship').length,2);assert.equal(s.edges.filter(e=>e.type==='aggregation-relationship').length,1);
+test('Solution plug-ins create Application Functions and Access links to registered Data Objects',()=>{
+ const {snapshot:s}=collect(),plugin=s.objects.find(o=>o.kind==='plugin');assert.equal(C.TYPES.plugin.base,'application-function');assert.equal(s.objects.filter(o=>o.kind==='table').length,2);
+ assert.equal(s.edges.filter(e=>e.type==='access-relationship').length,2);assert.equal(s.edges.filter(e=>e.type==='association-relationship').length,1);
  const p=P.plan([],[],s);assert.ok(p.relationships.some(r=>r.type==='access-relationship'));assert.equal(plugin.registrations.length,2);
  assert.equal(plugin.registrations[1].statecode,'1');assert.equal(C.properties(plugin)['PowerPlatform-Metadata-Assembly-isolationmode'],'2');
  assert.ok(!JSON.stringify(s).includes('SECRET-'));
@@ -44,3 +44,15 @@ test('Incomplete plug-in or step reads cannot retire earlier Access links',()=>{
 });
 test('Unavailable registered tables are reported without unresolved relationship endpoints',()=>{const {snapshot:s}=collect({missingTable:true});assert.equal(s.partial,true);assert.equal(s.unresolved.length,2);assert.doesNotThrow(()=>P.plan([],[],s));});
 test('Bulk inventory preserves plug-in observation states outside its scope',()=>{const s=collect().snapshot,old=existing(s),bulk=S.environments(F.tenant,[F.env]);delete bulk.scope;bulk.coverage=[{environmentId:F.env.id,collector:'inventory',complete:true}];assert.ok(!P.plan(old,[],bulk).operations.some(op=>op.key.includes('|plugin|')));});
+test('Legacy plug-ins migrate only on observation, preserving membership IDs and hosting evidence',()=>{
+ const before=collect().snapshot,old=existing(before);old.find(o=>o.kind==='plugin').base='application-component';
+ const links=rels(before).map(r=>r.type==='association-relationship'?{...r,type:'aggregation-relationship'}:r),membership=links.find(r=>r.type==='aggregation-relationship');
+ const after=collect({},[{environment:F.env,tableId:F.ids.table}],old).snapshot,p=P.plan(old,links,after);
+ assert.equal(p.counts.typeChanges,1);assert.equal(p.counts.relationshipTypeChanges,1);assert.equal(p.relationshipTypeChanges[0].id,membership.id);
+ const plugin=old.find(o=>o.kind==='plugin'),op=p.operations.find(o=>o.key===plugin.key);assert.equal(op.previousBase,'application-component');assert.equal(op.base,'application-function');assert.equal(op.elementId,plugin.elementId);
+ assert.ok(p.relationships.some(r=>r.target===plugin.key&&r.type==='serving-relationship'));assert.ok(!p.relationships.some(r=>r.id===membership.id&&r.action==='deleted'));
+ const empty=collect({empty:true},[{environment:F.env,tableId:F.ids.table}],old).snapshot;assert.equal(P.plan(old,links,empty).counts.typeChanges,0);
+});
+test('Function migration does not accept unrelated unexpected source types',()=>{
+ const s=collect().snapshot,old=existing(s);old.find(o=>o.kind==='plugin').base='application-service';assert.throws(()=>P.plan(old,[],s),/unexpected ArchiMate type/);
+});

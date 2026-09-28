@@ -9,7 +9,7 @@
  sync(collect({}));var plugin,table,table2,sol,access;
  $(m).find('element').each(function(e){var kind=String(e.prop(C.PREFIX+'ObjectType'));if(kind==='plugin')plugin=e;if(kind==='solution')sol=e;if(kind==='table'){if(String(e.prop(C.PREFIX+'ObjectId'))===F.ids.table)table=e;else table2=e;}});
  $(m).find('relationship').each(function(r){if(String(r.type)==='access-relationship')access=r;});
- ok(String(plugin.type)==='application-component'&&String(plugin.name)==='Contoso.AccountPlugin'&&String(plugin.name)===String(plugin.prop(C.PREFIX+'PluginTypeName'))&&String(plugin.prop(C.PREFIX+'DisplayName'))==='Account plug-in','Solution retrieval uses the plug-in type as the Application Component name and retains the friendly name in properties');
+ ok(String(plugin.type)==='application-function'&&String(plugin.name)==='Contoso.AccountPlugin'&&String(plugin.name)===String(plugin.prop(C.PREFIX+'PluginTypeName'))&&String(plugin.prop(C.PREFIX+'DisplayName'))==='Account plug-in','Solution retrieval uses the plug-in type as the Application Function name and retains the friendly name in properties');
  ok(String($(plugin).parent().first().name)==='Plugins','Plug-ins are placed in the Plugins folder');
  ok(PPArchi.relationships(m).filter(function(r){return r.type==='access-relationship';}).length===2,'Registered tables receive valid Access relationships');
  ok(String(access.accessType)==='access','Access type is unspecified rather than inferred read or write');

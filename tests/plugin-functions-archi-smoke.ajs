@@ -1,0 +1,53 @@
+/* Legacy Component -> Function migration, only in a new disposable model. */
+(function(){
+ var root=String(Java.type('java.nio.file.Paths').get(__DIR__).getParent().toAbsolutePath());
+ ['core','metadata','inventory','dependencies','dataverse','scoped','plugins','context','planner','java-runtime','archi-adapter'].forEach(function(f){load(root+'/lib/'+f+'.js');});load(root+'/tests/plugins-fixture.js');
+ var C=PPCore,F=PPPluginFixture,m=$.model.create('Plug-in Function migration test'),checks=[];m.setAsCurrent();
+ var method=Java.type('com.archimatetool.script.dom.model.ArchimateModelProxy').class.getDeclaredMethod('getEObject',Java.to([],'java.lang.Class[]'));method.setAccessible(true);var raw=method.invoke(m),Stack=Java.type('org.eclipse.gef.commands.CommandStack'),stack=new Stack();raw.setAdapter(Stack.class,stack);
+ function ok(value,message){C.assert(value,message);checks.push(message);}
+ function concept(key){return $(m).find('element').filter(function(e){return String(e.prop(C.PREFIX+'Key'))===key;}).first();}
+ function collect(requests){return PPScoped.create(F.create().http,F.tenant).collectMany(requests,'plugins',PPArchi.elements(m),{});}
+ function plan(s){return PPPlanner.plan(PPArchi.elements(m),PPArchi.relationships(m),s,{useSpecializations:true},PPArchi.isAllowed);}
+ var requests=[F.ids.solution,F.ids.solution2].map(function(solutionId){return {environment:F.env,solutionId:solutionId};});
+ var legacy=collect(requests);legacy.edges.forEach(function(e){if(e.type==='association-relationship'&&e.evidence.interaction==='solution-member')e.type='aggregation-relationship';});
+ var intended=C.TYPES.plugin.base;try{C.TYPES.plugin.base='application-component';var first=plan(legacy);PPArchi.apply(m,first,PPArchi.prepare(m,first));}finally{C.TYPES.plugin.base=intended;}
+ var pluginKey=C.key(F.tenant,F.env.id,'plugin',F.ids.plugin),plugin=concept(pluginKey),guid=String(plugin.id),table=concept(C.key(F.tenant,F.env.id,'table',F.ids.table));
+ plugin.documentation='Manual description';plugin.prop('Architect-Notes','Keep');plugin.prop('Repeated-note','First',true);plugin.prop('Repeated-note','Second',true);
+ var manual=m.createElement('application-component','Manual app'),manualLink=m.createRelationship('association-relationship','Manual link',manual,plugin),manualId=String(manualLink.id);
+ var view=m.createArchimateView('Migration diagram'),visual=view.add(plugin,30,40,180,80),tableVisual=view.add(table,310,40,160,70),visualId=String(visual.id);
+ visual.fillColor='#ABCDEF';var visualBounds=JSON.stringify(visual.bounds),access;
+ $(m).find('relationship').each(function(r){if(String(r.type)==='access-relationship'&&String(r.target.id)===String(table.id))access=r;});
+ var connection=view.add(access,visual,tableVisual),connectionId=String(connection.id),accessId=String(access.id);
+ var untouched=m.createElement('application-component','Unselected legacy plug-in'),untouchedId='bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',untouchedObject=PPScoped.normalize(F.tenant,F.env,'plugin',{plugintypeid:untouchedId,typename:'Unselected.Plugin'});
+ Object.keys(C.properties(untouchedObject)).forEach(function(k){untouched.prop(k,C.properties(untouchedObject)[k]);});untouched.prop('IsDeleted','no');
+ var tableRequests=[{environment:F.env,tableId:F.ids.table}],s=collect(tableRequests),p=plan(s),membershipIds=PPArchi.relationships(m).filter(function(r){return r.type==='aggregation-relationship';}).map(function(r){return r.id;});
+ ok(p.counts.typeChanges===1&&p.counts.relationshipTypeChanges===2,'Table-context preview includes the observed plug-in and both existing solution memberships');
+ ok(p.operations.every(function(op){return op.key!==untouchedObject.key;}),'Unobserved plug-ins are outside the migration scope');
+ var invalid=m.createRelationship('aggregation-relationship','Manual structural grouping',manual,plugin),invalidId=String(invalid.id),blocked=false;
+ try{PPArchi.prepare(m,p);}catch(e){blocked=String(e.message).indexOf(invalidId)>=0;}
+ ok(blocked&&String(concept(pluginKey).type)==='application-component'&&membershipIds.every(function(id){return String($(m).find('#'+id).first().type)==='aggregation-relationship';}),'An incompatible manual link blocks conversion before any model mutation');invalid.delete();
+ var Handler=Java.type('com.archimatetool.script.commands.CommandHandler');Handler.finalise();Handler.init();
+ var prepared=PPArchi.prepare(model,p);ok(String(concept(pluginKey).type)==='application-component','Preparing the preview does not mutate the legacy model');PPArchi.apply(model,p,prepared);Handler.finalise();
+ plugin=concept(pluginKey);
+ ok(String(plugin.type)==='application-function'&&String(plugin.id)===guid,'Legacy plug-in becomes an Application Function with its original Archi ID');
+ ok(String(plugin.name)==='Contoso.AccountPlugin','Function name remains the plug-in type name');
+ ok(String(plugin.documentation)==='Manual description'&&String(plugin.prop('Architect-Notes'))==='Keep'&&plugin.prop('Repeated-note',true).size()===2,'Migration preserves documentation and duplicate manual properties');
+ ok(String(plugin.specialization)==='Dataverse Plug-in'&&!!m.findSpecialization('Dataverse Plug-in','application-function'),'Configured specialization is recreated for the Function type');
+ ok(membershipIds.every(function(id){return String($(m).find('#'+id).first().type)==='association-relationship';}),'Solution memberships become Associations without changing relationship IDs');
+ ok(String($(m).find('#'+manualId).first().name)==='Manual link'&&String($(m).find('#'+accessId).first().accessType)==='access','Manual links and table Access relationships are preserved');
+ ok(String(visual.id)===visualId&&String(visual.concept.id)===guid&&String(visual.concept.type)==='application-function'&&JSON.stringify(visual.bounds)===visualBounds&&String(visual.fillColor)==='#ABCDEF'&&String(connection.id)===connectionId,'Diagram instances, bounds, colour and connection IDs survive conversion');
+ ok(String(untouched.type)==='application-component','Unselected legacy plug-in remains unchanged');
+ ok(!!stack&&stack.canUndo(),'Migration participates in the Archi Undo stack');stack.undo();
+ ok(String(concept(pluginKey).type)==='application-component'&&String(concept(pluginKey).id)===guid&&membershipIds.every(function(id){return String($(m).find('#'+id).first().type)==='aggregation-relationship';}),'Undo restores original element and membership types with the same IDs');stack.redo();
+ ok(String(concept(pluginKey).type)==='application-function'&&String(concept(pluginKey).id)===guid&&String(visual.concept.id)===guid,'Redo restores the Function without breaking diagram references');Handler.init();
+ var repeat=plan(collect(tableRequests));ok(repeat.counts.typeChanges===0&&repeat.counts.relationshipTypeChanges===0&&repeat.counts.create===0&&repeat.counts.relationshipsCreate===0,'Repeated refresh needs no conversion or duplicate elements/relationships');
+ PPArchi.apply(m,repeat,PPArchi.prepare(m,repeat));var file=root+'/work/plugin-functions-smoke.archimate';m.save(file);var loaded=$.model.load(file),saved=PPArchi.elements(loaded).filter(function(e){return e.key===pluginKey;})[0];
+ ok(saved.base==='application-function'&&saved.elementId===guid,'Converted Function and original ID survive save and reload');
+ // Both endpoints must change together: Function-to-Component aggregation would be invalid mid-conversion.
+ var batchModel=$.model.create('Two related legacy plug-ins');batchModel.setAsCurrent();var batchSnapshot=PPScoped.environments(F.tenant,[F.env]),pair=[];
+ [F.ids.plugin,untouchedId].forEach(function(id){var o=PPScoped.normalize(F.tenant,F.env,'plugin',{plugintypeid:id,typename:'Related.'+id}),e=batchModel.createElement('application-component',o.name);Object.keys(C.properties(o)).forEach(function(k){e.prop(k,C.properties(o)[k]);});e.prop('IsDeleted','no');pair.push({id:String(e.id),key:o.key});batchSnapshot.objects.push(o);});
+ var pairLink=batchModel.createRelationship('aggregation-relationship','Manual grouping',$(batchModel).find('#'+pair[0].id).first(),$(batchModel).find('#'+pair[1].id).first()),pairLinkId=String(pairLink.id);
+ var batchPlan=PPPlanner.plan(PPArchi.elements(batchModel),PPArchi.relationships(batchModel),batchSnapshot,{},PPArchi.isAllowed);PPArchi.apply(batchModel,batchPlan,PPArchi.prepare(batchModel,batchPlan));
+ ok(pair.every(function(p){var e=PPArchi.elements(batchModel).filter(function(o){return o.key===p.key;})[0];return e.base==='application-function'&&e.elementId===p.id;})&&String($(batchModel).find('#'+pairLinkId).first().type)==='aggregation-relationship','Related plug-ins convert together while preserving their valid manual relationship');
+ PPJava.write(root+'/work/plugin-functions-archi-smoke-result.json',JSON.stringify({status:'passed',checks:checks},null,2));console.log('POWERPLATFORM_FUNCTION_MIGRATION_PASSED: '+checks.length);
+}());

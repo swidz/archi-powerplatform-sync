@@ -2,7 +2,7 @@
 
 ## Pipeline
 
-The [context-specific retrieval](context-workflow.md) workflow supports batch selection in version 0.4.0: `get-environments` creates Nodes, `get-solutions` requires selected environment Nodes, and `get-*` component scripts require selected solution Application Components. `get-plugins` also accepts selected table Data Objects; a batch must contain one context type. `context.js` validates every selected concept before authentication, `scoped.js` collects and combines bounded solution membership/metadata before resolving references, and `scoped-app.js` coordinates a single preview/application for the batch. Most imported concepts reside in the Application layer, including solution Application Components and table/view Data Objects.
+The [context-specific retrieval](context-workflow.md) workflow supports batch selection in version 0.6.0: `get-environments` creates Nodes, `get-solutions` requires selected environment Nodes, and `get-*` component scripts require selected solution Application Components. `get-plugins` also accepts selected table Data Objects; a batch must contain one context type. `context.js` validates every selected concept before authentication, `scoped.js` collects and combines bounded solution membership/metadata before resolving references, and `scoped-app.js` coordinates a single preview/application for the batch. Most imported concepts reside in the Application layer, including solution Application Components, plug-in Application Functions and table/view Data Objects.
 
 The original environment-wide pipeline remains available:
 
@@ -19,7 +19,7 @@ flowchart LR
   ROLES --> META[Enrich supported element properties]
   META --> PLAN[Reconciliation and relationship validation]
   PLAN --> PREVIEW[Preview and Apply decision]
-  PREVIEW --> ARCHI[Public jArchi model API]
+  PREVIEW --> ARCHI[jArchi and undoable Archi model commands]
 ```
 
 `lib/core.js` defines identities, metadata properties and options. `auth.js`, `cli-java.js`, `java-runtime.js` and `http.js` handle local sign-in and read-only transport. `inventory.js` and `dataverse.js` collect metadata; `plugins.js` reads plug-in types and registrations; `metadata.js` defines the property catalogue and enriches observed objects. `dependencies.js` resolves explicit IDs. `service.js` coordinates collection. `planner.js` computes changes without mutating a model. `archi-adapter.js` applies the reviewed changes. `ui.js` supplies native checkbox dialogs; `app.js` coordinates the interactive workflow.
@@ -47,7 +47,7 @@ Role copies across business units are grouped by root role ID within one environ
 | Solution → table/view | Association | Explicit or table-root-inherited solution membership |
 | View → table | Association | `savedquery.returnedtypecode`; metadata relationship, not a query execution |
 | Plug-in → registered table | Access (unspecified read/write) | Processing step → SDK message filter primary table |
-| Solution → plug-in | Aggregation | Plug-in type, assembly or processing-step membership |
+| Solution → plug-in Function | Association | Plug-in type, assembly or processing-step membership |
 
 All mappings are checked with jArchi's relationship validator before application. `PowerPlatform-InteractionKind` and `PowerPlatform-Evidence` retain the source, field and owner of each observation. A relationship with several observations retains evidence from unavailable collectors rather than losing it on a partial run.
 

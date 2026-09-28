@@ -25,11 +25,11 @@ The solution picker supports search, sorting and multi-selection across all sele
 
 ## Layer and folder mapping
 
-Environments remain Technology-layer **Nodes**. Solutions, applications, flows, agents and plug-ins are Application-layer **Application Components**. Tables and system views are Application-layer **Data Objects**. Custom Dataverse roles retain their Business-layer **Business Role** mapping and are available through the original `Sync Power Platform` workflow.
+Environments remain Technology-layer **Nodes**. Solutions, applications, flows and agents are Application-layer **Application Components**. Plug-ins are Application-layer **Application Functions**. Tables and system views are Application-layer **Data Objects**. Custom Dataverse roles retain their Business-layer **Business Role** mapping and are available through the original `Sync Power Platform` workflow.
 
 Under each category, the root remains `PowerPlatform / Environment [short ID]`. The Application category contains sibling folders `Solutions`, `Applications`, `Flows`, `Agents`, `Tables`, `Views` and `Plugins` as needed.
 
-A component has one canonical identity per tenant/environment/kind/source ID, even when it belongs to several solutions. Membership is represented by links, rather than duplicate elements or placing a shared component into one solution's folder. Application components use **Aggregation** from the solution. Data Objects use **Association**, labelled through `PowerPlatform-InteractionKind=solution-member`. Membership describes packaging and does not assert runtime invocation.
+A component has one canonical identity per tenant/environment/kind/source ID, even when it belongs to several solutions. Membership is represented by links, rather than duplicate elements or placing a shared component into one solution's folder. Application components use **Aggregation** from the solution. Data Objects and plug-in Functions use **Association**, labelled through `PowerPlatform-InteractionKind=solution-member`. Membership describes packaging and does not assert runtime invocation.
 
 ## Metadata boundaries
 
@@ -55,7 +55,7 @@ Context runs record `PowerPlatform-LastSyncScope` on the model. Their success st
 
 ## Compatibility and installation
 
-Version 0.5.0 reuses 0.1.0–0.4.0 element identities, lifecycle properties and folder keys. No migration or reimport is required. Install the updated package with `tools/Install-ArchiScripts.ps1`; existing `config/settings.js` is preserved. Refresh the Scripts tree after installation. Single-element selection remains supported, subject to the same strict type checks. The next table/view refresh applies technical element names to the existing concepts. The default label language is en-US even when the preserved settings file has no labelLanguage setting. See [names and language](naming-and-language.md).
+Version 0.6.0 reuses 0.1.0–0.5.1 element identities, lifecycle properties and folder keys. No manual replacement or full reimport is required; get-plugins previews the type migration for observed legacy plug-ins. Install the updated package with `tools/Install-ArchiScripts.ps1`; existing `config/settings.js` is preserved. Refresh the Scripts tree after installation. Single-element selection remains supported, subject to the same strict type checks. The next table/view refresh applies technical element names to the existing concepts. get-plugins also migrates observed legacy plug-in Components to Application Functions, retaining IDs. See [plug-in migration](plugins.md#upgrading-existing-plug-ins). The default label language is en-US even when the preserved settings file has no labelLanguage setting. See [names and language](naming-and-language.md).
 
 The original `Sync Power Platform`, `Select Environments`, connection diagnostic and inventory export remain available. Environment-wide sync leaves solutions/tables/views untouched when they are not part of its collection scope.
 

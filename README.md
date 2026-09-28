@@ -1,6 +1,6 @@
 # Archi Power Platform Sync
 
-Retrieve Power Platform environments, solutions and their components into an open Archi model using context-specific scripts. Version **0.5.1**. Apps, cloud flows, agents, tables and views can each be retrieved for one or more selected solutions in a single batch. Plug-ins can be retrieved from selected solutions or tables. The original environment-wide sync remains available for broader inventory and custom Dataverse security roles.
+Retrieve Power Platform environments, solutions and their components into an open Archi model using context-specific scripts. Version **0.6.0**. Apps, cloud flows, agents, tables and views can each be retrieved for one or more selected solutions in a single batch. Plug-ins can be retrieved from selected solutions or tables. The original environment-wide sync remains available for broader inventory and custom Dataverse security roles.
 
 The tool uses your existing **Azure CLI user sign-in**. It makes metadata reads, previews the resulting model changes, and updates the model only after you select **Apply**. Save and commit the model through your normal Archi/coArchi workflow. It does not write to Power Platform or commit an Archi repository automatically.
 
@@ -59,7 +59,7 @@ Relations / PowerPlatform / Environment [short ID] / Relationships
 | Power Automate cloud/agent flow | Application Component |
 | Copilot Studio agent | Application Component |
 | Dataverse table or system view | Data Object |
-| Dataverse plug-in type | Application Component |
+| Dataverse plug-in type | Application Function |
 | Selected custom Dataverse security role | Business Role |
 
 Environments **serve** their solutions, apps, flows and agents. Solutions **aggregate** application components and have membership **associations** to tables and views. A view has a **view-of association** to its imported table. Explicit child-flow calls use **Triggering**; flow tools **serve** their agents; declared solution dependencies and app-role access mappings use **Association**. See [architecture and mappings](docs/architecture.md).
@@ -93,7 +93,7 @@ Custom-role classification is deliberately reviewable: Microsoft does not expose
 
 Tables use their logical name (schema name if needed) as the Archi element name. Dataverse system views have no per-view logical/schema name, so their stable name is `<table-logical-name>.view.<savedqueryid>`. The display name is stored in `PowerPlatform-DisplayName` and `PowerPlatform-ObjectName`; `PowerPlatform-TechnicalName` records the identifier used as the element name.
 
-Plug-ins use `PowerPlatform-PluginTypeName` (Dataverse `typename`) as the element name. Their friendly name stays in `PowerPlatform-DisplayName` and `PowerPlatform-ObjectName`. Rerun `get-plugins` from selected solutions or tables to rename existing plug-in elements.
+Plug-ins use `PowerPlatform-PluginTypeName` (Dataverse `typename`) as the element name. Their friendly name stays in `PowerPlatform-DisplayName` and `PowerPlatform-ObjectName`. Rerun `get-plugins` from selected solutions or tables to refresh existing plug-in elements. From version 0.6.0, the preview also converts previously imported plug-in Components to Application Functions and their solution membership links to Associations. Archi IDs, properties, Access links and diagram occurrences are retained. See [plug-in migration](docs/plugins.md#upgrading-existing-plug-ins).
 
 `config/settings.js` includes `labelLanguage:"en-US"` by default. This selects English metadata labels independently of the connected user's language. Supported language tags such as `pl-PL` and numeric Dataverse LCIDs are also accepted. The default also applies to preserved configuration files that omit this setting. See [naming and language behavior](docs/naming-and-language.md) for translation coverage and fallbacks.
 
