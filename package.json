@@ -2,6 +2,7 @@
   "name": "archi-powerplatform-sync",
   "version": "0.9.1",
   "private": true,
+  "license": "MIT",
   "description": "Selected Power Platform environments and architecture dependencies in Archi/jArchi",
   "scripts": {
     "test": "node --test tests/*.test.cjs",

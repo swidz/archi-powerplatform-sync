@@ -132,3 +132,7 @@ node tools/diagnose-scoped.cjs --environment <environment-id> --table <table-id>
 Real Archi/SWT tests and the opt-in live integration test are described in [verification](docs/verification.md). Generated test models and inventories are ignored by Git.
 
 The design follows the existing `archi-azure-sync` conventions while keeping this Power Platform implementation in an independent Git repository. See [provenance](docs/provenance.md).
+
+## License
+
+Copyright (c) 2026 Sebastian Widz. Released under the [MIT License](LICENSE).
