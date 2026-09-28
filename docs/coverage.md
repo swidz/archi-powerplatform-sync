@@ -1,6 +1,6 @@
 # Coverage and known limitations
 
-Version 0.6.0 includes solutions, table/system-view Data Objects, and plug-in Application Functions through explicit context scripts. See [context workflow](context-workflow.md). The original environment-wide collection remains available and keeps its previous EA-level scope; it does not automatically import tables, views or plug-ins.
+Version 0.7.0 includes flow Application Processes, solutions, table/system-view Data Objects, and plug-in Application Functions through explicit context scripts. See [context workflow](context-workflow.md). The original environment-wide collection remains available and keeps its previous EA-level scope; it does not automatically import tables, views or plug-ins.
 
 ## Sources
 

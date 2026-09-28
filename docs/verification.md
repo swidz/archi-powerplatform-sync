@@ -37,6 +37,14 @@ $env:ARCHI_PP_TEST_ENVIRONMENT = '<approved-environment-id>'
 
 The live test exercises the production Java CLI bridge and HTTPS transport, object collection, dependency resolution, ArchiMate validation, repeated application and model save/reload. It temporarily includes unmanaged role candidates in that test model to exercise role mapping; it does not select roles in another model or assert that every candidate is custom.
 
+## Results on 2026-09-28 — version 0.7.0
+
+Verified **122 Node tests**, syntax checks for **57 JavaScript files**, **21 flow Process checks**, **18 plug-in Function migration checks**, **13 plug-in Archi checks**, **32 scoped Archi checks** and **22 bulk Archi checks**.
+
+The new `flow-processes-archi-smoke.ajs` suite verifies fresh multi-solution get-flows retrieval, legacy Component conversion, membership links from both selected and unselected solutions, stable concept/relationship IDs, manual and repeated properties, documentation, specializations, child-flow Triggering, environment/agent Serving, diagrams, incompatible manual-link preflight, Undo/Redo, repeated retrieval, save/reload, bulk conversion and mixed flow/plug-in migration. The Node suite also checks that unobserved legacy endpoints retain their actual type during relationship validation. Existing generic script tests exercise the renamed flows action, including rejection of incorrect multi-selection before authentication.
+
+These tests use synthetic metadata and disposable Archi models. The Dataverse workflows API and metadata collection boundaries are unchanged; no new live tenant read was needed.
+
 ## Results on 2026-09-28 — version 0.6.0
 
 Verified **119 Node tests**, syntax checks for **56 JavaScript files**, **18 Function migration checks**, **13 plug-in Archi checks**, **32 scoped Archi checks** and **22 bulk Archi checks**. The migration suite exercises existing Component models, both solution membership links during table-context retrieval, unchanged IDs, manual/duplicate properties, documentation, specializations, Access/Serving links, diagram layout/connections, invalid manual-link preflight, unselected legacy plug-ins, save/reload, and Undo/Redo. Related plug-ins connected by a valid manual Aggregation convert as one batch. Repeated retrieval creates no duplicate elements or relationships.

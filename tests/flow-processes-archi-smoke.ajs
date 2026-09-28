@@ -1,0 +1,69 @@
+/* Flow Process creation and legacy migration, only in new disposable models. */
+(function(){
+ var root=String(Java.type('java.nio.file.Paths').get(__DIR__).getParent().toAbsolutePath());
+ ['core','metadata','inventory','dependencies','dataverse','scoped','plugins','context','planner','java-runtime','archi-adapter'].forEach(function(f){load(root+'/lib/'+f+'.js');});
+ var C=PPCore,tenant='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',env={id:'11111111-1111-1111-1111-111111111111',name:'Flow test',url:'https://test.crm.dynamics.com',available:true};
+ var ids={parent:'44444444-4444-4444-4444-444444444444',child:'77777777-7777-7777-7777-777777777777',agent:'55555555-5555-5555-5555-555555555555',app:'33333333-3333-3333-3333-333333333333',untouched:'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'};
+ var solutions=['88888888-8888-8888-8888-888888888888','99999999-9999-9999-9999-999999999999'],active,calls=[],checks=[];
+ var http={request:function(method,url){calls.push(url);active=url.match(/solutions\(([^)]+)\)/)[1];return {solutionid:active,friendlyname:'Solution '+solutions.indexOf(active)};},pages:function(url,resource,cb){
+  calls.push(url);var collection=decodeURIComponent(url).split('/api/data/v9.2/')[1].split('?')[0];
+  if(collection==='solutioncomponents')return cb([ids.parent,ids.child].map(function(id){return {componenttype:29,objectid:id,_solutionid_value:active};}));
+  if(collection==='workflows')return cb([ids.parent,ids.child].map(function(id){return {workflowid:id,name:id===ids.parent?'Parent flow':'Child flow',category:5,type:1,clientdata:JSON.stringify({properties:{definition:{actions:id===ids.parent?{call:{type:'Workflow',inputs:{host:{workflowReferenceName:ids.child}}}}:{}}}})};}));
+  cb([]);
+ }};
+ var m=$.model.create('Flow Process migration test');m.setAsCurrent();
+ var method=Java.type('com.archimatetool.script.dom.model.ArchimateModelProxy').class.getDeclaredMethod('getEObject',Java.to([],'java.lang.Class[]'));method.setAccessible(true);var raw=method.invoke(m),Stack=Java.type('org.eclipse.gef.commands.CommandStack'),stack=new Stack();raw.setAdapter(Stack.class,stack);
+ function ok(value,message){C.assert(value,message);checks.push(message);}
+ function key(kind,id){return C.key(tenant,env.id,kind,id);}
+ function concept(kind,id){return $(m).find('element').filter(function(e){return String(e.prop(C.PREFIX+'Key'))===key(kind,id);}).first();}
+ function collect(selected){return PPScoped.create(http,tenant).collectMany(selected.map(function(id){return {environment:env,solutionId:id};}),'flows',PPArchi.elements(m),{});}
+ function plan(s){return PPPlanner.plan(PPArchi.elements(m),PPArchi.relationships(m),s,{useSpecializations:true},PPArchi.isAllowed);}
+ function find(id){return $(m).find('#'+id).first();}
+ var legacy=collect(solutions);legacy.edges.forEach(function(e){if(e.evidence.interaction==='solution-member')e.type='aggregation-relationship';});
+ var agent=PPInventory.base(tenant,env,'agent',ids.agent,'Agent'),app=PPInventory.base(tenant,env,'canvasapp',ids.app,'App');legacy.objects.push(agent,app);
+ legacy.edges.push({source:key('flow',ids.parent),target:agent.key,type:'serving-relationship',evidence:{owner:agent.key+'|agent-tools',source:'test',field:'flowId',interaction:'agent-flow-tool'}});
+ var intended=C.TYPES.flow.base;try{C.TYPES.flow.base='application-component';var first=plan(legacy);PPArchi.apply(m,first,PPArchi.prepare(m,first));}finally{C.TYPES.flow.base=intended;}
+ var parent=concept('flow',ids.parent),child=concept('flow',ids.child),guid=String(parent.id),childGuid=String(child.id);
+ parent.documentation='Manual flow notes';parent.prop('Architect-Notes','Keep');parent.prop('Repeated-note','First',true);parent.prop('Repeated-note','Second',true);
+ var manual=m.createRelationship('association-relationship','App uses flow',concept('canvasapp',ids.app),parent),manualId=String(manual.id);
+ var grouping=m.createRelationship('aggregation-relationship','Manual flow group',parent,child),groupingId=String(grouping.id);
+ var trigger=PPArchi.relationships(m).filter(function(r){return r.type==='triggering-relationship';})[0],triggerId=trigger.id;
+ var view=m.createArchimateView('Flow migration diagram'),visual=view.add(parent,30,40,180,80),childVisual=view.add(child,310,40,160,70),visualId=String(visual.id),childVisualId=String(childVisual.id);
+ visual.fillColor='#ABCDEF';var bounds=JSON.stringify(visual.bounds),connection=view.add(find(triggerId),visual,childVisual),connectionId=String(connection.id);
+ var untouchedObject=PPScoped.normalize(tenant,env,'flow',{workflowid:ids.untouched,name:'Unselected legacy flow'}),untouched=m.createElement('application-component',untouchedObject.name);
+ Object.keys(C.properties(untouchedObject)).forEach(function(k){untouched.prop(k,C.properties(untouchedObject)[k]);});untouched.prop('IsDeleted','no');
+ var s=collect([solutions[0]]),p=plan(s),membershipIds=PPArchi.relationships(m).filter(function(r){return r.managed&&r.type==='aggregation-relationship';}).map(function(r){return r.id;});
+ ok(s.scope.action==='get-flows'&&calls.some(function(url){return url.indexOf('/workflows?')>=0;}),'get-flows uses the Dataverse workflows API with its new scope name');
+ ok(p.counts.typeChanges===2&&p.counts.relationshipTypeChanges===4,'Preview converts both observed flows and their selected and unselected solution memberships');
+ var invalid=m.createRelationship('aggregation-relationship','Incompatible manual grouping',concept('canvasapp',ids.app),parent),invalidId=String(invalid.id),blocked=false;
+ try{PPArchi.prepare(m,p);}catch(e){blocked=String(e.message).indexOf(invalidId)>=0;}
+ ok(blocked&&String(parent.type)==='application-component'&&membershipIds.every(function(id){return String(find(id).type)==='aggregation-relationship';}),'Invalid manual links block conversion before any mutation');invalid.delete();
+ var Handler=Java.type('com.archimatetool.script.commands.CommandHandler');Handler.finalise();Handler.init();
+ var prepared=PPArchi.prepare(model,p);ok(String(parent.type)==='application-component','Preview preparation leaves the legacy model untouched');PPArchi.apply(model,p,prepared);Handler.finalise();
+ parent=concept('flow',ids.parent);child=concept('flow',ids.child);
+ ok(String(parent.type)==='application-process'&&String(parent.id)===guid&&String(child.type)==='application-process'&&String(child.id)===childGuid,'Flows become Application Processes with their original IDs');
+ ok(String(parent.name)==='Parent flow'&&String(parent.prop(C.PREFIX+'ObjectType'))==='flow','Flow names and source identities survive conversion');
+ ok(String(parent.documentation)==='Manual flow notes'&&String(parent.prop('Architect-Notes'))==='Keep'&&parent.prop('Repeated-note',true).size()===2,'Manual documentation and repeated properties survive');
+ ok(String(parent.specialization)==='Power Automate Flow'&&!!m.findSpecialization('Power Automate Flow','application-process'),'Flow specialization is recreated for Application Process');
+ ok(membershipIds.every(function(id){return String(find(id).type)==='association-relationship';}),'All observed-flow solution memberships retain their IDs as Associations');
+ ok(String(find(triggerId).type)==='triggering-relationship'&&String(find(groupingId).type)==='aggregation-relationship'&&String(find(manualId).name)==='App uses flow','Child-flow Triggering and valid manual relationships retain their IDs and types');
+ ok(PPArchi.relationships(m).filter(function(r){return r.type==='serving-relationship'&&(r.target===key('flow',ids.parent)||r.target===key('flow',ids.child)||r.source===key('flow',ids.parent));}).length===3,'Environment hosting and flow-to-agent Serving links remain valid');
+ ok(String(visual.id)===visualId&&String(childVisual.id)===childVisualId&&String(visual.concept.id)===guid&&String(visual.concept.type)==='application-process'&&JSON.stringify(visual.bounds)===bounds&&String(visual.fillColor)==='#ABCDEF'&&String(connection.id)===connectionId,'Diagram occurrences, layout, colour and Triggering connection survive');
+ ok(String(untouched.type)==='application-component'&&String(concept('canvasapp',ids.app).type)==='application-component'&&String(concept('solution',solutions[1]).type)==='application-component','Unobserved flows, apps and solutions keep their existing types');
+ ok(stack.canUndo(),'Flow migration participates in the Undo stack');stack.undo();
+ ok(String(concept('flow',ids.parent).type)==='application-component'&&String(concept('flow',ids.parent).id)===guid&&membershipIds.every(function(id){return String(find(id).type)==='aggregation-relationship';}),'Undo restores original flow and membership types with stable IDs');stack.redo();
+ ok(String(concept('flow',ids.parent).type)==='application-process'&&String(visual.concept.id)===guid&&String(connection.id)===connectionId,'Redo restores the Process and diagram references');Handler.init();
+ var repeat=plan(collect(solutions));ok(repeat.counts.typeChanges===0&&repeat.counts.relationshipTypeChanges===0&&repeat.counts.create===0&&repeat.counts.relationshipsCreate===0,'Repeated multi-solution get-flows creates no duplicates or further type changes');PPArchi.apply(m,repeat,PPArchi.prepare(m,repeat));
+ var file=root+'/work/flow-processes-smoke.archimate';m.save(file);var loaded=$.model.load(file),saved=PPArchi.elements(loaded).filter(function(e){return e.key===key('flow',ids.parent);})[0];
+ ok(saved.base==='application-process'&&saved.elementId===guid,'Process type and stable ID survive save and reload');
+ var fresh=$.model.create('Fresh flow Process test'),freshSnapshot=PPScoped.create(http,tenant).collectMany(solutions.map(function(id){return {environment:env,solutionId:id};}),'flows',[],{}),freshPlan=PPPlanner.plan([],[],freshSnapshot,{},PPArchi.isAllowed);fresh.setAsCurrent();PPArchi.apply(fresh,freshPlan,PPArchi.prepare(fresh,freshPlan));
+ ok(PPArchi.elements(fresh).filter(function(e){return e.kind==='flow';}).every(function(e){return e.base==='application-process';})&&PPArchi.relationships(fresh).filter(function(r){return r.evidence.some(function(e){return e.interaction==='solution-member';});}).every(function(r){return r.type==='association-relationship';}),'Fresh multi-solution retrieval creates Processes and membership Associations');
+ m.setAsCurrent();var bulk=PPScoped.environments(tenant,[env]);delete bulk.scope;bulk.objects.push(untouchedObject);var bulkPlan=plan(bulk);PPArchi.apply(m,bulkPlan,PPArchi.prepare(m,bulkPlan));
+ ok(bulkPlan.counts.typeChanges===1&&String(concept('flow',ids.untouched).type)==='application-process','Environment-wide sync also converts observed legacy flows');
+ var mixed=$.model.create('Mixed legacy types test'),mixedSnapshot=PPScoped.environments(tenant,[env]),mixedIds={};mixed.setAsCurrent();
+ ['flow','plugin'].forEach(function(kind){var o=PPInventory.base(tenant,env,kind,ids.parent,kind),e=mixed.createElement('application-component',kind);Object.keys(C.properties(o)).forEach(function(k){e.prop(k,C.properties(o)[k]);});e.prop('IsDeleted','no');mixedSnapshot.objects.push(o);mixedIds[kind]=String(e.id);});
+ var mixedLink=mixed.createRelationship('association-relationship','Manual link',$(mixed).find('#'+mixedIds.flow).first(),$(mixed).find('#'+mixedIds.plugin).first()),mixedLinkId=String(mixedLink.id);
+ var mixedPlan=PPPlanner.plan(PPArchi.elements(mixed),PPArchi.relationships(mixed),mixedSnapshot,{},PPArchi.isAllowed);PPArchi.apply(mixed,mixedPlan,PPArchi.prepare(mixed,mixedPlan));
+ ok(String($(mixed).find('#'+mixedIds.flow).first().type)==='application-process'&&String($(mixed).find('#'+mixedIds.plugin).first().type)==='application-function'&&String($(mixed).find('#'+mixedLinkId).first().name)==='Manual link','A mixed migration applies the correct target types and preserves a shared manual link');
+ PPJava.write(root+'/work/flow-processes-archi-smoke-result.json',JSON.stringify({status:'passed',checks:checks},null,2));console.log('POWERPLATFORM_PROCESS_MIGRATION_PASSED: '+checks.length);
+}());

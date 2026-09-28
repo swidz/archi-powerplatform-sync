@@ -1,6 +1,6 @@
 # Archi Power Platform Sync
 
-Retrieve Power Platform environments, solutions and their components into an open Archi model using context-specific scripts. Version **0.6.0**. Apps, cloud flows, agents, tables and views can each be retrieved for one or more selected solutions in a single batch. Plug-ins can be retrieved from selected solutions or tables. The original environment-wide sync remains available for broader inventory and custom Dataverse security roles.
+Retrieve Power Platform environments, solutions and their components into an open Archi model using context-specific scripts. Version **0.7.0**. Apps, cloud flows, agents, tables and views can each be retrieved for one or more selected solutions in a single batch. Plug-ins can be retrieved from selected solutions or tables. The original environment-wide sync remains available for broader inventory and custom Dataverse security roles.
 
 The tool uses your existing **Azure CLI user sign-in**. It makes metadata reads, previews the resulting model changes, and updates the model only after you select **Apply**. Save and commit the model through your normal Archi/coArchi workflow. It does not write to Power Platform or commit an Archi repository automatically.
 
@@ -26,7 +26,7 @@ Requirements: Archi with jArchi using **GraalJS**, Azure CLI **2.54+**, and an i
 
 3. Open the target Archi model. Run **archi-powerplatform-sync / scripts / get-environments.ajs**. Check the environments to import; optionally assign architecture stages. Review the preview and apply. This creates only environment Nodes.
 4. Select one or more imported environment Nodes in the model tree or a diagram (Ctrl-click or Shift-click on Windows). Run **get-solutions.ajs**, choose solutions in the combined searchable popup, review and apply. The popup identifies each solution's environment.
-5. Select one or more imported solution Application Components. Run **get-applications.ajs**, **get-workflows.ajs**, **get-agents.ajs**, **get-tables.ajs** or **get-views.ajs** to retrieve that component type. The entire selection is validated before authentication or API calls; wrong or mixed types stop the run. Each batch has one combined preview and Apply step.
+5. Select one or more imported solution Application Components. Run **get-applications.ajs**, **get-flows.ajs**, **get-agents.ajs**, **get-tables.ajs** or **get-views.ajs** to retrieve that component type. The entire selection is validated before authentication or API calls; wrong or mixed types stop the run. Each batch has one combined preview and Apply step.
 6. Select multiple imported tables or multiple solutions and run **get-plugins.ajs** to retrieve plug-in types and their registered-table Access relationships. Keep one context type per selection.
 7. Inspect and save the model. Rerun a component command after importing its referenced components to resolve additional links.
 
@@ -56,13 +56,13 @@ Relations / PowerPlatform / Environment [short ID] / Relationships
 | Power Platform environment | Node |
 | Dataverse solution | Application Component |
 | Canvas, model-driven and code app | Application Component |
-| Power Automate cloud/agent flow | Application Component |
+| Power Automate cloud/agent flow | Application Process |
 | Copilot Studio agent | Application Component |
 | Dataverse table or system view | Data Object |
 | Dataverse plug-in type | Application Function |
 | Selected custom Dataverse security role | Business Role |
 
-Environments **serve** their solutions, apps, flows and agents. Solutions **aggregate** application components and have membership **associations** to tables and views. A view has a **view-of association** to its imported table. Explicit child-flow calls use **Triggering**; flow tools **serve** their agents; declared solution dependencies and app-role access mappings use **Association**. See [architecture and mappings](docs/architecture.md).
+Environments **serve** their solutions, apps, flows and agents. Solutions **aggregate** application components and have membership **associations** to flows, plug-ins, tables and views. A view has a **view-of association** to its imported table. Explicit child-flow calls use **Triggering**; flow tools **serve** their agents; declared solution dependencies and app-role access mappings use **Association**. See [architecture and mappings](docs/architecture.md).
 
 Tables and views can be imported through their specific solution-context scripts. **get-plugins** also imports registered table definitions needed for Access relationships. Columns, business rules, users, teams, connections and connectors are not created as model elements. Dataverse views are represented as Data Objects; no Archi diagrams are generated or rearranged.
 
@@ -92,6 +92,8 @@ Custom-role classification is deliberately reviewable: Microsoft does not expose
 ## Names and language
 
 Tables use their logical name (schema name if needed) as the Archi element name. Dataverse system views have no per-view logical/schema name, so their stable name is `<table-logical-name>.view.<savedqueryid>`. The display name is stored in `PowerPlatform-DisplayName` and `PowerPlatform-ObjectName`; `PowerPlatform-TechnicalName` records the identifier used as the element name.
+
+Version 0.7.0 renames `get-workflows.ajs` to `get-flows.ajs` and maps flows to Application Processes. Refresh the Scripts tree, select one or more imported solutions, then run `get-flows`. Apply the preview to convert observed legacy flow Components and their solution membership links, retaining Archi IDs, properties and diagrams. The installer removes the old script entry and preserves settings. See [flow migration](docs/context-workflow.md#upgrading-existing-flows).
 
 Plug-ins use `PowerPlatform-PluginTypeName` (Dataverse `typename`) as the element name. Their friendly name stays in `PowerPlatform-DisplayName` and `PowerPlatform-ObjectName`. Rerun `get-plugins` from selected solutions or tables to refresh existing plug-in elements. From version 0.6.0, the preview also converts previously imported plug-in Components to Application Functions and their solution membership links to Associations. Archi IDs, properties, Access links and diagram occurrences are retained. See [plug-in migration](docs/plugins.md#upgrading-existing-plug-ins).
 

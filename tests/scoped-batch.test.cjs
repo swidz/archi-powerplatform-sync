@@ -12,12 +12,12 @@ function fixture(config={}){
    return cb([{workflowid:id,name:'Flow '+id,category:5,type:1,clientdata}]);
   }cb([]);
  }};
- const collector=S.create(http,F.tenant);return {calls,collector,collect:(requests=ids.map(solutionId=>({environment:env,solutionId})),existing=[])=>collector.collectMany(requests,'workflows',existing,{})};
+ const collector=S.create(http,F.tenant);return {calls,collector,collect:(requests=ids.map(solutionId=>({environment:env,solutionId})),existing=[])=>collector.collectMany(requests,'flows',existing,{})};
 }
 test('Batch retrieval deduplicates shared components while retaining both solution memberships',()=>{
  const s=fixture({shared:true}).collect();assert.equal(s.objects.filter(o=>o.kind==='flow').length,1);assert.equal(s.objects.filter(o=>o.kind==='solution').length,2);assert.equal(s.objects.filter(o=>o.kind==='environment').length,1);
  assert.equal(s.edges.filter(e=>e.evidence.interaction==='solution-member').length,2);assert.equal(s.scope.contexts.length,2);
- const p=P.plan([],[],s);assert.equal(p.counts.create,4);assert.equal(p.relationships.filter(r=>r.type==='aggregation-relationship').length,2);
+ const p=P.plan([],[],s);assert.equal(p.counts.create,4);assert.equal(p.relationships.filter(r=>r.type==='association-relationship').length,2);
 });
 test('Cross-solution child-flow references resolve in either selection order on the first batch',()=>{
  for(const order of [ids,ids.slice().reverse()]){const s=fixture().collect(order.map(solutionId=>({environment:env,solutionId})));assert.equal(s.unresolved.length,0);assert.equal(s.partial,false);assert.equal(s.edges.filter(e=>e.type==='triggering-relationship').length,1);}
@@ -46,6 +46,31 @@ test('Cross-solution resolution cannot bind a child flow from another environmen
 test('Batch refresh retires only selected solution memberships, preserving shared objects and other solutions',()=>{
  const before=fixture({shared:true}).collect(),old=before.objects.map(F.existing),app=old.find(o=>o.kind==='flow');
  const links=before.edges.map((e,i)=>({...e,id:'membership-'+i,managed:true,evidence:[e.evidence],properties:{IsDeleted:'no'}}));
- const sol=old.find(o=>o.kind==='solution'&&o.id===ids[0]);const empty=S.create({},F.tenant).selectedSolutions(env,[sol],[]);empty.scope={action:'get-workflows',environmentId:env.id,solutionId:sol.id};empty.completedOwners[sol.key+'|members|flow']=true;
+ const sol=old.find(o=>o.kind==='solution'&&o.id===ids[0]);const empty=S.create({},F.tenant).selectedSolutions(env,[sol],[]);empty.scope={action:'get-flows',environmentId:env.id,solutionId:sol.id};empty.completedOwners[sol.key+'|members|flow']=true;
  const p=P.plan(old,links,S.merge([empty],old));assert.equal(p.relationships.filter(r=>r.action==='deleted').length,1);assert.ok(!p.operations.some(o=>o.key===app.key));assert.equal(p.counts.deleted,0);
+});
+
+test('get-flows migrates observed legacy Components and all their solution links without duplicating IDs',()=>{
+ const before=fixture({shared:true}).collect(),old=before.objects.map(F.existing),flow=old.find(o=>o.kind==='flow');flow.base='application-component';
+ const untouched={...F.existing(F.object('flow',F.ids.child)),base:'application-component'};old.push(untouched);
+ const links=before.edges.map((e,i)=>({...e,id:'membership-'+i,type:'aggregation-relationship',managed:true,evidence:[e.evidence],properties:{IsDeleted:'no'}}));
+ const after=fixture({shared:true}).collect([{environment:env,solutionId:ids[0]}],old),p=P.plan(old,links,after);
+ assert.equal(after.scope.action,'get-flows');assert.equal(p.counts.typeChanges,1);assert.equal(p.counts.relationshipTypeChanges,2);
+ assert.deepEqual(p.relationshipTypeChanges.map(r=>r.id),links.map(r=>r.id));assert.ok(links.every(r=>r.type==='aggregation-relationship'));
+ const op=p.operations.find(o=>o.key===flow.key);assert.equal(op.previousBase,'application-component');assert.equal(op.base,'application-process');assert.equal(op.elementId,flow.elementId);
+ assert.ok(!p.operations.some(o=>o.key===untouched.key));assert.equal(p.relationships.filter(r=>r.type==='association-relationship').length,1);
+ assert.ok(p.relationships.some(r=>r.type==='serving-relationship'&&r.target===flow.key));assert.ok(!p.relationships.some(r=>r.action==='deleted'));
+});
+
+test('Bulk refresh migrates observed flows while rejecting unrelated type mismatches',()=>{
+ const s=F.snapshot(),old=s.objects.map(F.existing);old.find(o=>o.kind==='flow').base='application-component';
+ const p=P.plan(old,[],s);assert.equal(p.counts.typeChanges,1);assert.equal(p.operations.find(o=>o.object.kind==='flow').base,'application-process');
+ old.find(o=>o.kind==='flow').base='application-function';assert.throws(()=>P.plan(old,[],s),/unexpected ArchiMate type/);
+});
+
+test('Flow dependencies validate untouched legacy endpoints against their actual Component type',()=>{
+ const target={...F.existing(F.object('flow',F.ids.child)),base:'application-component'},s=fixture().collect([{environment:env,solutionId:ids[0]}],[target]),validated=[];
+ const p=P.plan([target],[],s,{},(type,source,destination)=>{validated.push([type,source,destination]);return true;});
+ assert.ok(validated.some(([type,source,destination])=>type==='triggering-relationship'&&source==='application-process'&&destination==='application-component'));
+ assert.ok(!p.operations.some(o=>o.key===target.key));
 });

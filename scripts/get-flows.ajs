@@ -2,5 +2,5 @@
     var selected=typeof selection!=="undefined"?selection:[];
     var root=String(Java.type("java.nio.file.Paths").get(__DIR__).getParent().toAbsolutePath());
     ["core","metadata","auth","http","inventory","dependencies","dataverse","scoped","plugins","context","planner","cli-java","java-runtime","archi-adapter","ui","scoped-app"].forEach(function(f){load(root+"/lib/"+f+".js");});
-    load(root+"/config/settings.js");PPScopedApp.run("workflows",POWERPLATFORM_SETTINGS,selected);
+    load(root+"/config/settings.js");PPScopedApp.run("flows",POWERPLATFORM_SETTINGS,selected);
 }());

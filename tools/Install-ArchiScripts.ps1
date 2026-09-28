@@ -16,4 +16,7 @@ $taskConfig = Join-Path $taskDestination 'config'
 New-Item -ItemType Directory -Force -Path $taskConfig | Out-Null
 if(!(Test-Path -LiteralPath (Join-Path $taskConfig 'settings.js'))){Copy-Item -LiteralPath (Join-Path $taskPackage 'config/settings.js') -Destination $taskConfig}
 Copy-Item -LiteralPath (Join-Path $taskPackage 'README.md') -Destination $taskDestination -Force
+$taskObsoleteScript = [IO.Path]::GetFullPath((Join-Path $taskDestination 'scripts/get-workflows.ajs'))
+if(!$taskObsoleteScript.StartsWith($taskDestination.TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)){throw 'Obsolete script path must remain under the installed package.'}
+if(Test-Path -LiteralPath $taskObsoleteScript){Remove-Item -LiteralPath $taskObsoleteScript}
 Write-Output "Installed to $taskDestination. Existing settings.js was preserved. Refresh the jArchi Scripts tree."

@@ -63,14 +63,14 @@ test('Missing agent component definition permission cannot retire prior membersh
  const s=fixture({fail:'solutioncomponentdefinitions'}).collect('agents');assert.equal(s.partial,true);assert.equal(s.coverage[0].complete,false);
 });
 test('Classic workflows and component libraries are distinguished from unreadable solution members',()=>{
- for(const [group,type,id,collection,row] of [['workflows',29,F.ids.flow,'workflows',{workflowid:F.ids.flow,category:0,type:1}],['applications',300,F.ids.app,'canvasapps',{canvasappid:F.ids.app,canvasapptype:1}]]){
+ for(const [group,type,id,collection,row] of [['flows',29,F.ids.flow,'workflows',{workflowid:F.ids.flow,category:0,type:1}],['applications',300,F.ids.app,'canvasapps',{canvasappid:F.ids.app,canvasapptype:1}]]){
   const s=fixture({members:[member(type,id)],rows:{[collection]:[row]}}).collect(group);
   assert.ok(s.coverage.every(c=>c.complete));assert.equal(s.unresolved.length,0);assert.equal(Object.values(s.ignored)[0],1);
  }
 });
-test('Targeted workflows retain static calls to previously imported flows without importing other kinds',()=>{
+test('Targeted flows retain static calls to previously imported flows without importing other kinds',()=>{
  const target=F.existing(F.object('flow',F.ids.child)),definition=JSON.stringify({properties:{definition:{actions:{call:{type:'Workflow',inputs:{host:{workflowReferenceName:F.ids.child}}}}}}});
- const fx=fixture({members:[member(29,F.ids.flow)],rows:{workflows:[{workflowid:F.ids.flow,name:'Parent',clientdata:definition}]}}),s=fx.collect('workflows',[target],{discoverDependencies:true});
+ const fx=fixture({members:[member(29,F.ids.flow)],rows:{workflows:[{workflowid:F.ids.flow,name:'Parent',clientdata:definition}]}}),s=fx.collect('flows',[target],{discoverDependencies:true});
  const p=P.plan([target],[],s);assert.ok(p.relationships.some(r=>r.type==='triggering-relationship'&&r.target===target.key));assert.ok(!p.operations.some(o=>o.key===target.key));assert.ok(!JSON.stringify(s).includes('"clientdata":'));
 });
 test('Context runs do not overwrite role selection or use selected-out roles as reference endpoints',()=>{

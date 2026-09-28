@@ -21,7 +21,7 @@
             if(group==='views')ok(s.objects.filter(function(o){return o.kind==='view';}).every(function(o){return o.name===o.tableLogicalName+'.view.'+o.dataverseId&&o.displayNameLanguageStatus==='requested'&&o.displayNameLanguageCode===1033;}),'Live view names are stable identifiers with English display properties');
         });
         var ids={};PPArchi.elements(m).forEach(function(e){ids[e.key]=e.elementId;});
-        ['applications','workflows','agents'].forEach(function(group){var s=collector.collectMany(requests,group,PPArchi.elements(m),{}),p=sync(s);ok(p.counts.create===0,'Repeated '+group+' batch retrieval reuses existing identities');});
+        ['applications','flows','agents'].forEach(function(group){var s=collector.collectMany(requests,group,PPArchi.elements(m),{}),p=sync(s);ok(p.counts.create===0,'Repeated '+group+' batch retrieval reuses existing identities');});
         ok(PPArchi.elements(m).every(function(e){return ids[e.key]===e.elementId;}),'All component GUIDs survive scoped refresh');
         var file=root+'/work/scoped-live-smoke.archimate';m.save(file);var loaded=$.model.load(file);
         ok(PPArchi.elements(loaded).length===PPArchi.elements(m).length,'Scoped live model saves and reloads');
