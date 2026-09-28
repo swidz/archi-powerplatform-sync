@@ -31,5 +31,15 @@
   ok(Java.from(table.getItems()).filter(function(i){return i.getChecked();}).length===2,'Cross-environment solution selection survives filtering');click(button(w,'Continue'));
  },'Select solutions');
  result=PPUI.solutions([{name:'Production'},{name:'Development'}],candidates,[candidates[0].key]);if(error)throw error;ok(result.length===2&&result[0]===candidates[0]&&result[1]===candidates[1],'Solution picker returns the selected source objects');
+ var tables=candidates.map(function(o,i){return Object.assign({},o,{kind:'table',name:'account',displayName:i?'Account copy':'Account'});});
+ automate(function(dialog,w){var table=w.filter(function(x){return type(x)==='Table';})[0],search=w.filter(function(x){return type(x)==='Text';})[0];
+  ok(table.getItemCount()===2&&Java.from(table.getItems()).filter(function(i){return i.getChecked();}).length===1,'Component picker checks existing objects and leaves new copied objects unchecked');
+  search.setText('Account copy');ok(table.getItemCount()===1,'Component picker can search display names');click(button(w,'Select filtered'));search.setText('');
+  ok(Java.from(table.getItems()).every(function(i){return i.getChecked();}),'Component selection survives filtering across copied environments');click(button(w,'Continue'));
+ },'Select tables');
+ result=PPUI.components('tables',tables,[Object.assign({},tables[0],{properties:{IsDeleted:'no'}})]);if(error)throw error;ok(result.length===2&&result[0]===tables[0]&&result[1]===tables[1],'Component picker returns only checked source objects');
+ automate(function(dialog,w){click(button(w,'Clear selection'));ok(button(w,'Continue').getEnabled(),'Component selection allows an explicit empty scope');click(button(w,'Continue'));},'Select views');
+ result=PPUI.components('views',tables.map(function(t){return Object.assign({},t,{kind:'view'});}),[]);if(error)throw error;ok(result.length===0,'An empty component selection returns no objects');
+ automate(function(dialog,w){click(button(w,'Cancel'));},'Select flows');result=PPUI.components('flows',tables.map(function(t){return Object.assign({},t,{kind:'flow'});}),[]);if(error)throw error;ok(result===null,'Cancelling a component picker returns no selection');
  PPJava.write(root+'/work/ui-smoke-result.json',JSON.stringify({status:'passed',checks:checks},null,2));console.log('POWERPLATFORM_UI_SMOKE_PASSED: '+checks.length);
 }());

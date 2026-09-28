@@ -1,6 +1,6 @@
 # Archi Power Platform Sync
 
-Retrieve Power Platform environments, solutions and their components into an open Archi model using context-specific scripts. Version **0.8.0**. Apps, cloud flows, agents, tables and views can each be retrieved for one or more selected solutions in a single batch. Plug-ins can be retrieved from selected solutions or tables. The original environment-wide sync remains available for broader inventory and custom Dataverse security roles.
+Retrieve Power Platform environments, solutions and their components into an open Archi model using context-specific scripts. Version **0.9.0**. Apps, cloud flows, agents, tables and views can each be retrieved for one or more selected solutions in a single batch. Plug-ins can be retrieved from selected solutions or tables. The original environment-wide sync remains available for broader inventory and custom Dataverse security roles.
 
 The tool uses your existing **Azure CLI user sign-in**. It makes metadata reads, previews the resulting model changes, and updates the model only after you select **Apply**. Save and commit the model through your normal Archi/coArchi workflow. It does not write to Power Platform or commit an Archi repository automatically.
 
@@ -26,8 +26,8 @@ Requirements: Archi with jArchi using **GraalJS**, Azure CLI **2.54+**, and an i
 
 3. Open the target Archi model. Run **archi-powerplatform-sync / scripts / get-environments.ajs**. Check the environments to import; optionally assign architecture stages. Review the preview and apply. This creates only environment Nodes.
 4. Select one or more imported environment Nodes in the model tree or a diagram (Ctrl-click or Shift-click on Windows). Run **get-solutions.ajs**, choose solutions in the combined searchable popup, review and apply. The popup identifies each solution's environment.
-5. Select one or more imported solution Application Components. Run **get-applications.ajs**, **get-flows.ajs**, **get-agents.ajs**, **get-tables.ajs** or **get-views.ajs** to retrieve that component type. The entire selection is validated before authentication or API calls; wrong or mixed types stop the run. Each batch has one combined preview and Apply step.
-6. Select multiple imported tables or multiple solutions and run **get-plugins.ajs** to retrieve plug-in types and their registered-table Access relationships. Keep one context type per selection.
+5. Select one or more imported solution Application Components. Run **get-applications.ajs**, **get-flows.ajs**, **get-agents.ajs**, **get-tables.ajs** or **get-views.ajs** to retrieve that component type. The entire selection is validated before authentication or API calls; wrong or mixed types stop the run. Choose the objects to create or refresh in the searchable multi-select popup, then review the combined preview and Apply. New objects start unchecked; existing objects start checked. Unchecked objects are preserved.
+6. Select multiple imported tables or multiple solutions and run **get-plugins.ajs** to choose plug-in types in the popup. Only selected plug-ins and their registered tables are imported, with Access relationships. Keep one context type per model-tree selection.
 7. Inspect and save the model. Rerun a component command after importing its referenced components to resolve additional links.
 
 See the [context workflow guide](docs/context-workflow.md) for selection rules, shared components and the difference between solution membership and runtime dependencies.

@@ -1,0 +1,44 @@
+/* Selected object application inside new disposable models only. */
+(function(){
+ var root=String(Java.type('java.nio.file.Paths').get(__DIR__).getParent().toAbsolutePath());
+ ['core','metadata','inventory','dependencies','dataverse','scoped','plugins','context','planner','java-runtime','archi-adapter'].forEach(function(f){load(root+'/lib/'+f+'.js');});load(root+'/tests/plugins-fixture.js');
+ var C=PPCore,F=PPPluginFixture,env=F.env,tenant=F.tenant,solutions=[F.ids.solution,F.ids.solution2],ids=['11111111-aaaa-bbbb-cccc-111111111111','22222222-aaaa-bbbb-cccc-222222222222','33333333-aaaa-bbbb-cccc-333333333333'];
+ var current,includeNew=false,checks=[],fieldReads=0;
+ var http={request:function(method,url){current=url.match(/solutions\(([^)]+)\)/)[1];return {solutionid:current,friendlyname:'Solution '+solutions.indexOf(current)};},pages:function(url,resource,cb){var decoded=decodeURIComponent(url),collection=decoded.split('/api/data/v9.2/')[1].split('?')[0],kind=decoded.indexOf('componenttype eq 26')>=0?'view':'table';
+  if(collection==='solutioncomponents')return cb(ids.slice(0,includeNew?3:2).map(function(id){return {componenttype:kind==='view'?26:1,objectid:id,_solutionid_value:current,rootcomponentbehavior:1};}));
+  if(collection==='EntityDefinitions')return cb(ids.slice(0,includeNew?3:2).map(function(id,i){return {MetadataId:id,LogicalName:'table'+i,SchemaName:'Table'+i};}));
+  if(collection==='savedqueries')return cb(ids.slice(0,includeNew?3:2).map(function(id,i){return {savedqueryid:id,name:'View '+i,returnedtypecode:'table0'};}));
+  cb([]);
+ }};
+ var collector=PPScoped.create(http,tenant),m=$.model.create('Selected object test');m.setAsCurrent();
+ function ok(value,message){C.assert(value,message);checks.push(message);}
+ function collect(group){return collector.collectMany(solutions.map(function(id){return {environment:env,solutionId:id};}),group,PPArchi.elements(m),{});}
+ function apply(s){var p=PPPlanner.plan(PPArchi.elements(m),PPArchi.relationships(m),s,{},PPArchi.isAllowed);PPArchi.apply(m,p,PPArchi.prepare(m,p));return p;}
+ function key(kind,id){return C.key(tenant,env.id,kind,id);}
+ function concept(kind,id){return $(m).find('element').filter(function(e){return String(e.prop(C.PREFIX+'Key'))===key(kind,id);}).first();}
+ apply(collect('tables'));var a=concept('table',ids[0]),b=concept('table',ids[1]),guid=String(a.id);b.documentation='Keep unchecked table notes';b.prop('Architect-Notes','Keep');
+ var view=m.createArchimateView('Unchecked table diagram'),visual=view.add(b,40,50,160,80),visualId=String(visual.id),bounds=JSON.stringify(visual.bounds);
+ var before=JSON.stringify(PPArchi.elements(m).filter(function(o){return o.key===key('table',ids[1]);})[0]),linksBefore=JSON.stringify(PPArchi.relationships(m).filter(function(r){return r.target===key('table',ids[1]);}));
+ includeNew=true;var candidates=collect('tables'),chosen=PPScoped.selectObjects(candidates,'tables',[key('table',ids[0])],PPArchi.elements(m));
+ PPMetadata.create({pages:function(url,resource,cb){fieldReads++;C.assert(url.indexOf(ids[0])>=0,'Only checked table fields should be read');cb([{LogicalName:'name',AttributeType:'String'}]);}}).tableFields(chosen,[env],{});
+ var p=apply(chosen);ok(fieldReads===1&&p.counts.documentationUpdates===1,'Field Documentation is collected only for the checked table');
+ ok(!concept('table',ids[2]),'An unchecked newly available table is not created');
+ ok(JSON.stringify(PPArchi.elements(m).filter(function(o){return o.key===key('table',ids[1]);})[0])===before,'Unchecked table metadata, lifecycle properties and manual notes are unchanged');
+ ok(JSON.stringify(PPArchi.relationships(m).filter(function(r){return r.target===key('table',ids[1]);}))===linksBefore,'Unchecked table membership relationships are not retired or refreshed');
+ ok(String(visual.id)===visualId&&JSON.stringify(visual.bounds)===bounds,'Unchecked diagram occurrences keep their identity and layout');
+ ok(String(a.id)===guid&&String(a.documentation).indexOf('1. **name** (String)')>=0,'The checked table keeps its ID and receives field Documentation');
+ ok(JSON.parse(String(m.prop(C.PREFIX+'LastSyncScope'))).selectedObjectKeys.length===1,'The model records the explicit object selection');
+ p=apply(PPScoped.selectObjects(collect('tables'),'tables',[key('table',ids[2])],PPArchi.elements(m)));
+ ok(p.counts.create===1&&PPArchi.elements(m).filter(function(o){return o.kind==='table';}).length===3,'Selecting a previously unchecked new table creates exactly one Data Object');
+ var views=collect('views');p=apply(PPScoped.selectObjects(views,'views',[key('view',ids[0])],PPArchi.elements(m)));
+ ok(p.counts.create===1&&PPArchi.elements(m).filter(function(o){return o.kind==='view';}).length===1,'Selecting one view imports only that view');
+ ok(PPArchi.relationships(m).some(function(r){return r.source===key('view',ids[0])&&r.target===key('table',ids[0]);}),'Selected views link to an existing table without reimporting it');
+ var file=root+'/work/object-selection-smoke.archimate';m.save(file);var loaded=$.model.load(file);ok(PPArchi.elements(loaded).length===PPArchi.elements(m).length&&String($(loaded).find('#'+String(b.id)).first().documentation)==='Keep unchecked table notes','Selected model saves and reloads with unchecked content intact');
+ var pluginModel=$.model.create('Selected plug-ins test');pluginModel.setAsCurrent();var ps=PPScoped.create(F.create().http,tenant).collectMany([{environment:env,solutionId:solutions[0]}],'plugins',[],{});
+ var extraPlugin=PPScoped.normalize(tenant,env,'plugin',{plugintypeid:ids[0],typename:'Unchecked.Plugin'}),extraTable=PPScoped.normalize(tenant,env,'table',{MetadataId:ids[0],LogicalName:'unchecked_table'});ps.objects.push(extraPlugin,extraTable);
+ ps.edges.push({source:extraPlugin.key,target:extraTable.key,type:'access-relationship',evidence:{owner:extraPlugin.key+'|registered-table|'+extraTable.id,source:'sdkmessageprocessingstep',field:'id',interaction:'registered-on'}});
+ var pluginKeys=[key('plugin',F.ids.plugin)],tableKeys=PPScoped.relatedTables(ps,pluginKeys).map(function(o){return o.key;}),selected=PPScoped.selectObjects(ps,'plugins',pluginKeys,[],tableKeys),pp=PPPlanner.plan([],[],selected,{},PPArchi.isAllowed);PPArchi.apply(pluginModel,pp,PPArchi.prepare(pluginModel,pp));
+ ok(PPArchi.elements(pluginModel).filter(function(o){return o.kind==='plugin';}).length===1&&PPArchi.elements(pluginModel).filter(function(o){return o.kind==='table';}).length===2,'Only selected plug-ins and their registered tables are automatically imported');
+ ok(PPArchi.relationships(pluginModel).filter(function(r){return r.type==='access-relationship';}).length===2,'Selected plug-ins retain Access links to their included tables');
+ PPJava.write(root+'/work/object-selection-archi-smoke-result.json',JSON.stringify({status:'passed',checks:checks},null,2));console.log('POWERPLATFORM_OBJECT_SELECTION_PASSED: '+checks.length);
+}());

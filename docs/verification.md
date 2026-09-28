@@ -37,6 +37,14 @@ $env:ARCHI_PP_TEST_ENVIRONMENT = '<approved-environment-id>'
 
 The live test exercises the production Java CLI bridge and HTTPS transport, object collection, dependency resolution, ArchiMate validation, repeated application and model save/reload. It temporarily includes unmanaged role candidates in that test model to exercise role mapping; it does not select roles in another model or assert that every candidate is custom.
 
+## Results on 2026-09-28 — version 0.9.0
+
+Verified **144 Node tests**, syntax checks for **62 JavaScript files**, **19 native SWT picker checks**, **13 selected-object Archi checks**, **32 scoped Archi checks**, **13 plug-in Archi checks**, **12 table Documentation checks**, **21 flow Process checks** and **22 bulk Archi checks**.
+
+Selection tests cover all six component script groups, cancellation/empty selection before enrichment, unchecked component and membership preservation, selected versus unchecked dependency owners, Dataverse identity aliases, shared solution membership, copied environment IDs, missing unchecked reference targets, agent flow tools, view/table references and automatic registered tables for checked plug-ins. Native dialogs verify defaults, filtering, cross-environment selection, empty scope and cancellation. The real Archi test imports a single table/view while preserving unchecked IDs, properties, Documentation, links and diagrams; only the checked table triggers field-list collection. Save/reload and selected plug-in Access endpoints pass.
+
+All model tests use disposable local models. No collection API changed, so this release did not require a new live tenant read. Run the added model test with `tools/test-archi.ps1 -BundlesFile '<effective-configuration>/org.eclipse.equinox.simpleconfigurator/bundles.info' -Script object-selection-archi-smoke.ajs`.
+
 ## Results on 2026-09-28 — version 0.8.0
 
 Verified **131 Node tests**, syntax checks for **60 JavaScript files**, **12 table Documentation checks**, **32 scoped Archi checks**, **13 plug-in Archi checks**, **21 flow Process checks**, **22 bulk Archi checks** and **6 live table-field checks**.

@@ -2,7 +2,7 @@
 
 Run **get-plugins.ajs** with either one or more imported **table Data Objects**, or one or more imported **solution Application Components** selected in the model tree or a diagram. All selected items must have the same Power Platform object type. Mixed tables/solutions, views, folders, manual objects and other types are rejected before authentication or API calls.
 
-Like the other component scripts, this command collects all matching plug-ins and then shows one combined change preview. It does not add a separate plug-in checkbox picker.
+Like the other component scripts, get-plugins lists matching plug-ins in a searchable checkbox picker before the combined change preview. New plug-ins are unchecked; existing active plug-ins are checked. Only checked plug-ins are created or refreshed. Registered tables for those selected plug-ins are automatically included to provide Access endpoints; tables belonging only to unchecked plug-ins are not imported. Cancelling or continuing with no plug-ins checked makes no changes.
 
 ## Model mapping
 
@@ -18,7 +18,7 @@ Enabled and disabled registrations are included; their state, stage, mode, execu
 - **Solutions:** read solutioncomponent types 90 (plug-in type), 91 (assembly) and 92 (processing step). Assembly membership includes its plug-in types, except a shell-only assembly. A solution step may identify a plug-in even when the assembly is packaged separately. All registrations of each included type are read to document its registered tables. Registered table definitions are imported as Data Objects when needed for Access endpoints, including tables outside the solution package.
 - Source identity includes tenant, environment, kind and object ID. Copies across environments remain separate. Solution membership uses Association from the solution to the plug-in Function. This records package membership without implying execution. Environments serve plug-in Functions through Serving relationships.
 
-A complete refresh can mark a removed Access relationship IsDeleted=yes. Evidence is owned by the plug-in/table pair, so a table refresh can reconcile a link originally discovered through a solution, and vice versa. Unselected table pairs remain intact. Incomplete registration/type/table reads preserve prior links; missing table endpoints are reported. Removing a type from a solution retires its solution-membership link, not the plug-in element or registrations.
+A complete refresh can mark a removed Access relationship IsDeleted=yes. Evidence is owned by the plug-in/table pair, so a table refresh can reconcile a link originally discovered through a solution, and vice versa. Unselected table pairs remain intact. Incomplete registration/type/table reads preserve prior links; missing table endpoints are reported. Unchecked plug-ins and their memberships/registrations are preserved. For a selected plug-in, a removed membership in another selected solution can be retired without deleting the plug-in element.
 
 ## Properties
 

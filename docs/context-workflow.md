@@ -23,6 +23,18 @@ The solution picker supports search, sorting and multi-selection across all sele
 
 **get-plugins** also supports multiple table contexts. Its selection must contain only tables or only solutions, never both. The [plug-in guide](plugins.md) explains registration scope and automatic table endpoints. Every retrieval script enriches observed elements using the [metadata property catalogue](metadata-properties.md) before the common preview.
 
+## Choose the objects to synchronize
+
+From version 0.9.0, every `get-*` script displays an object-selection popup. Environments and solutions retain their existing pickers. Applications, flows, agents, tables, views and plug-ins now have their own combined checkbox list across the selected model-tree contexts. Choose the required objects, click Continue, then review the change preview before Apply.
+
+The component picker supports search, sorting, Select filtered and Clear selection. It shows technical name, display name, object type, environment, import status, table name where relevant, and IDs. Shared objects appear once; copies in different environments remain separate. Labels use the configured language. New and previously deleted components start unchecked; existing active components start checked. Cancelling or continuing with nothing checked makes no model changes.
+
+Unchecked components keep their existing metadata, Documentation, lifecycle properties and solution membership links. Dependencies owned by unchecked components are also preserved. A checked object may link to an unchecked object already active in the model, without refreshing that endpoint. A reference to an unchecked object that is not yet in the model is reported and omitted; it does not cause an automatic import.
+
+For get-plugins, registered tables for the checked plug-ins are included automatically, as requested, so their Access links can be created. Only tables related to the selected plug-ins are included. The preview states the selected/available object count and the number of registered tables included.
+
+Candidate metadata and dependency evidence are collected before the popup. Extended property enrichment and table field Documentation are read after filtering, only for the chosen objects and required context/table elements. The read-only diagnostic tools still collect the requested complete scope; the new checkbox workflow belongs to the interactive get-* scripts.
+
 ## Layer and folder mapping
 
 Environments remain Technology-layer **Nodes**. Solutions, applications and agents are Application-layer **Application Components**. Flows are Application-layer **Application Processes**. Plug-ins are Application-layer **Application Functions**. Tables and system views are Application-layer **Data Objects**. Custom Dataverse roles retain their Business-layer **Business Role** mapping and are available through the original `Sync Power Platform` workflow.
@@ -39,7 +51,7 @@ Tables use `EntityDefinitions`, with names, schema/entity-set names, description
 
 Views use `savedqueries`, with their name, description, table logical name, query type and managed/custom flags. Their FetchXML, layout XML and query results are not retrieved. Personal `userquery` views are outside solution scope.
 
-Some solutions include a table with **Include Subcomponents** (`rootcomponentbehavior=0`) instead of listing every view separately. `get-views` includes those table views as well as explicit type-26 members. Table shells and roots configured to exclude subcomponents do not expand to all views. Duplicate view IDs are collapsed. An imported view links to its table when both are available in the model; importing tables after views also establishes that link.
+Some solutions include a table with **Include Subcomponents** (`rootcomponentbehavior=0`) instead of listing every view separately. `get-views` lists those table views as well as explicit type-26 members in the picker, then imports only checked views. Table shells and roots configured to exclude subcomponents do not expand to all views. Duplicate view IDs are collapsed. An imported view links to its table when both are available in the model; importing tables after views also establishes that link.
 
 `get-flows` retains the original cloud-flow boundary: category 5, definition type 1. Classic workflows/business rules are excluded and counted separately in the preview, so they are not confused with failed metadata reads. Component libraries/custom pages are likewise excluded from app components. Code apps still rely on environment-wide inventory in this version; solution-context application retrieval covers canvas and model-driven apps.
 
@@ -49,7 +61,7 @@ With `discoverDependencies=true`, component scripts also read static child-flow 
 
 When an endpoint has not yet been imported, the script reports an unresolved reference. Import it through the relevant solution/type script, then rerun the originating component script. Runtime calls cannot be inferred from shared connectors or mere solution membership. Cross-environment dependencies are not guessed.
 
-Each script updates only its observed objects and completed evidence scopes. A table run cannot retire app/flow/agent membership. A solution-A refresh cannot retire unselected solution-B membership. A failed page or denied metadata read protects prior links throughout its environment for that batch, including shared objects read successfully in another selected solution. An unresolved endpoint protects its own evidence scope. Rerun a complete batch to reconcile removals. A component removed from a solution stays in the model; only its membership link can receive the reversible `IsDeleted=yes` marker.
+Each interactive script updates its checked objects, their parent environment/solution metadata, and completed evidence scopes owned by checked objects. Unchecked component metadata, field Documentation and membership links are preserved. A table run cannot retire app/flow/agent membership. A solution-A refresh cannot retire unselected solution-B membership. A failed page or denied metadata read protects prior links throughout its environment for that batch, including shared objects read successfully in another selected solution. An unresolved endpoint protects its own evidence scope. Rerun a complete batch to reconcile removals. A component removed from a solution stays in the model; only its membership link can receive the reversible `IsDeleted=yes` marker.
 
 Context runs record `PowerPlatform-LastSyncScope` on the model. Their success status describes that action's scope, not full environment coverage. They do not overwrite the saved environment-wide role selection.
 
@@ -63,7 +75,7 @@ When `useSpecializations=true`, the Power Automate Flow specialization is recrea
 
 ## Compatibility and installation
 
-Version 0.8.0 reuses 0.1.0–0.7.0 element identities, lifecycle properties and folder keys. No manual replacement or full reimport is required; get-flows and get-plugins preview the type migration for observed legacy flows and plug-ins. The installer replaces the former get-workflows script with get-flows. Install the updated package with `tools/Install-ArchiScripts.ps1`; existing `config/settings.js` is preserved. Refresh the Scripts tree after installation. Single-element selection remains supported, subject to the same strict type checks. The next table/view refresh applies technical element names to the existing concepts. get-plugins also migrates observed legacy plug-in Components to Application Functions, retaining IDs. See [plug-in migration](plugins.md#upgrading-existing-plug-ins). The default label language is en-US even when the preserved settings file has no labelLanguage setting. See [names and language](naming-and-language.md).
+Version 0.9.0 reuses 0.1.0–0.8.0 element identities, lifecycle properties and folder keys. No manual replacement or full reimport is required; get-flows and get-plugins preview the type migration for observed legacy flows and plug-ins. The installer replaces the former get-workflows script with get-flows. Install the updated package with `tools/Install-ArchiScripts.ps1`; existing `config/settings.js` is preserved. Refresh the Scripts tree after installation. Single-element selection remains supported, subject to the same strict type checks. The next table/view refresh applies technical element names to the existing concepts. get-plugins also migrates observed legacy plug-in Components to Application Functions, retaining IDs. See [plug-in migration](plugins.md#upgrading-existing-plug-ins). The default label language is en-US even when the preserved settings file has no labelLanguage setting. See [names and language](naming-and-language.md).
 
 The original `Sync Power Platform`, `Select Environments`, connection diagnostic and inventory export remain available. Environment-wide sync leaves solutions/tables/views untouched when they are not part of its collection scope.
 
