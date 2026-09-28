@@ -1,6 +1,6 @@
 {
   "name": "archi-powerplatform-sync",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": true,
   "description": "Selected Power Platform environments and architecture dependencies in Archi/jArchi",
   "scripts": {

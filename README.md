@@ -1,6 +1,6 @@
 # Archi Power Platform Sync
 
-Retrieve Power Platform environments, solutions and their components into an open Archi model using context-specific scripts. Version **0.5.0**. Apps, cloud flows, agents, tables and views can each be retrieved for one or more selected solutions in a single batch. Plug-ins can be retrieved from selected solutions or tables. The original environment-wide sync remains available for broader inventory and custom Dataverse security roles.
+Retrieve Power Platform environments, solutions and their components into an open Archi model using context-specific scripts. Version **0.5.1**. Apps, cloud flows, agents, tables and views can each be retrieved for one or more selected solutions in a single batch. Plug-ins can be retrieved from selected solutions or tables. The original environment-wide sync remains available for broader inventory and custom Dataverse security roles.
 
 The tool uses your existing **Azure CLI user sign-in**. It makes metadata reads, previews the resulting model changes, and updates the model only after you select **Apply**. Save and commit the model through your normal Archi/coArchi workflow. It does not write to Power Platform or commit an Archi repository automatically.
 
@@ -92,6 +92,8 @@ Custom-role classification is deliberately reviewable: Microsoft does not expose
 ## Names and language
 
 Tables use their logical name (schema name if needed) as the Archi element name. Dataverse system views have no per-view logical/schema name, so their stable name is `<table-logical-name>.view.<savedqueryid>`. The display name is stored in `PowerPlatform-DisplayName` and `PowerPlatform-ObjectName`; `PowerPlatform-TechnicalName` records the identifier used as the element name.
+
+Plug-ins use `PowerPlatform-PluginTypeName` (Dataverse `typename`) as the element name. Their friendly name stays in `PowerPlatform-DisplayName` and `PowerPlatform-ObjectName`. Rerun `get-plugins` from selected solutions or tables to rename existing plug-in elements.
 
 `config/settings.js` includes `labelLanguage:"en-US"` by default. This selects English metadata labels independently of the connected user's language. Supported language tags such as `pl-PL` and numeric Dataverse LCIDs are also accepted. The default also applies to preserved configuration files that omit this setting. See [naming and language behavior](docs/naming-and-language.md) for translation coverage and fallbacks.
 

@@ -29,3 +29,7 @@ No assembly content, source code, step configuration, secure configuration, busi
 ## References
 
 The collector follows Microsoft's [plug-in registration model](https://learn.microsoft.com/en-us/power-apps/developer/data-platform/register-plug-in), [solution component types](https://learn.microsoft.com/en-us/power-apps/developer/data-platform/webapi/reference/solutioncomponent?view=dataverse-latest), [processing steps](https://learn.microsoft.com/en-us/power-apps/developer/data-platform/webapi/reference/sdkmessageprocessingstep?view=dataverse-latest), [message filters](https://learn.microsoft.com/en-us/power-apps/developer/data-platform/webapi/reference/sdkmessagefilter?view=dataverse-latest), and the documented [jArchi Access relationship property](https://github.com/archimatetool/archi-scripting-plugin/wiki/Relationships#accessType).
+
+## Element names
+
+From version 0.5.1, a plug-in's Archi element name is its `PowerPlatform-PluginTypeName` value (Dataverse `typename`). The friendly source name remains in `PowerPlatform-DisplayName` and `PowerPlatform-ObjectName`; raw `name` and `friendlyname` values remain in metadata properties when supplied. If the type name is unavailable, the source name is retained. Rerun `get-plugins` from selected solutions or tables and Apply the preview to rename existing concepts, retaining their GUIDs, Access relationships and manual content.

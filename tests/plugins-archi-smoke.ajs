@@ -9,7 +9,7 @@
  sync(collect({}));var plugin,table,table2,sol,access;
  $(m).find('element').each(function(e){var kind=String(e.prop(C.PREFIX+'ObjectType'));if(kind==='plugin')plugin=e;if(kind==='solution')sol=e;if(kind==='table'){if(String(e.prop(C.PREFIX+'ObjectId'))===F.ids.table)table=e;else table2=e;}});
  $(m).find('relationship').each(function(r){if(String(r.type)==='access-relationship')access=r;});
- ok(String(plugin.type)==='application-component','Plug-in types use Application Components');
+ ok(String(plugin.type)==='application-component'&&String(plugin.name)==='Contoso.AccountPlugin'&&String(plugin.name)===String(plugin.prop(C.PREFIX+'PluginTypeName'))&&String(plugin.prop(C.PREFIX+'DisplayName'))==='Account plug-in','Solution retrieval uses the plug-in type as the Application Component name and retains the friendly name in properties');
  ok(String($(plugin).parent().first().name)==='Plugins','Plug-ins are placed in the Plugins folder');
  ok(PPArchi.relationships(m).filter(function(r){return r.type==='access-relationship';}).length===2,'Registered tables receive valid Access relationships');
  ok(String(access.accessType)==='access','Access type is unspecified rather than inferred read or write');
@@ -18,8 +18,8 @@
  var contexts=PPArchi.context([table,table2],'plugins',m);ok(contexts.length===2&&contexts.every(function(c){return !!c.tableId;}),'get-plugins accepts multiple table Data Objects');
  ok(PPArchi.context([sol],'plugins',m)[0].solutionId===F.ids.solution,'get-plugins accepts solution context');
  var rejected=false;try{PPArchi.context([table,sol],'plugins',m);}catch(e){rejected=true;}ok(rejected,'Mixed tables and solutions are rejected');
- var guid=String(plugin.id);plugin.prop('Architect-Notes','keep');var plan=sync(collect({},contexts.map(function(c){return {environment:F.env,tableId:c.tableId};})));
- ok(plan.counts.create===0&&String(plugin.id)===guid,'Multi-table retrieval reuses the same plug-in concept');
+ var guid=String(plugin.id);plugin.name='Legacy friendly name';plugin.prop('Architect-Notes','keep');var plan=sync(collect({},contexts.map(function(c){return {environment:F.env,tableId:c.tableId};})));
+ ok(plan.counts.create===0&&String(plugin.id)===guid&&String(plugin.name)===String(plugin.prop(C.PREFIX+'PluginTypeName')),'Multi-table refresh renames the existing plug-in to its type name without changing its GUID');
  ok(String(plugin.prop('Architect-Notes'))==='keep','Plug-in refresh preserves manual properties');
  var removed=sync(collect({empty:true},[{environment:F.env,tableId:F.ids.table}]));
  ok(removed.counts.relationshipsDeleted===1&&String(plugin.prop('IsDeleted'))==='no','Removing a registration retires only its Access link');

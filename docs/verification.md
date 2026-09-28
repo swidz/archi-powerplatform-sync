@@ -37,6 +37,10 @@ $env:ARCHI_PP_TEST_ENVIRONMENT = '<approved-environment-id>'
 
 The live test exercises the production Java CLI bridge and HTTPS transport, object collection, dependency resolution, ArchiMate validation, repeated application and model save/reload. It temporarily includes unmanaged role candidates in that test model to exercise role mapping; it does not select roles in another model or assert that every candidate is custom.
 
+## Results on 2026-09-28 — version 0.5.1
+
+Verified **117 Node tests**, syntax checks for **55 JavaScript files**, and **13 plug-in Archi checks**. The disposable Archi test confirms that solution retrieval names the plug-in Application Component using PowerPlatform-PluginTypeName while preserving the friendly name in properties. A subsequent multi-table refresh replaces a legacy friendly element name on the same concept, retains its GUID and manual notes, and preserves registration/Access behavior. This narrow naming change did not require new live API reads.
+
 ## Results on 2026-09-28 — version 0.5.0
 
 Verified **117 Node tests**, syntax checks for **55 JavaScript files**, **32 scoped Archi checks**, **22 bulk Archi checks**, **13 plug-in Archi checks**, **27 live scoped checks** and **12 live plug-in checks**. The tests cover English selection ahead of a Polish user label, alternate language settings, deterministic missing-translation fallback, label-read failures, technical table/view names, and updates that preserve existing element GUIDs, manual properties/documentation and diagram occurrences.
